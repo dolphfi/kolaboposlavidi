@@ -139,7 +139,7 @@ export function Sidebar({ className }: React.HTMLAttributes<HTMLDivElement>) {
     const { t } = useTranslation();
     const { isSidebarOpen, toggleSidebar, isMobile, closeSidebar } = useSidebar();
     const [openAccordion, setOpenAccordion] = React.useState<string>("");
-    const [businessName, setBusinessName] = React.useState('Kolabo POS');
+    const [businessName, setBusinessName] = React.useState('Kolabo POS') || 'KOLABO TECH';
     const [logoUrl, setLogoUrl] = React.useState('');
 
     React.useEffect(() => {
