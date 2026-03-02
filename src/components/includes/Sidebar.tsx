@@ -139,7 +139,7 @@ export function Sidebar({ className }: React.HTMLAttributes<HTMLDivElement>) {
     const { t } = useTranslation();
     const { isSidebarOpen, toggleSidebar, isMobile, closeSidebar } = useSidebar();
     const [openAccordion, setOpenAccordion] = React.useState<string>("");
-    const [businessName, setBusinessName] = React.useState('Kolabo POS') || 'KOLABO TECH';
+    const [businessName, setBusinessName] = React.useState('Kolabo POS');
     const [logoUrl, setLogoUrl] = React.useState('');
 
     React.useEffect(() => {
@@ -198,7 +198,7 @@ export function Sidebar({ className }: React.HTMLAttributes<HTMLDivElement>) {
                 {isSidebarOpen && (
                     <h2 className="text-lg font-semibold tracking-tight ml-2 text-white mr-auto">
                         <span className="text-lg sm:text-xl font-bold text-white hidden md:block">
-                            {businessName.charAt(0).toUpperCase()}
+                            {businessName.charAt(0).toUpperCase() || 'KOLABO TECH'}
                         </span>
                     </h2>
                 )}
