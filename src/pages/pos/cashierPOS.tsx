@@ -280,12 +280,15 @@ const CashierPOS: React.FC = () => {
                 items = items.filter(item => item.categoryId === selectedCategoryServices || item.category?.id === selectedCategoryServices);
             }
         } else {
-            items = products.map(p => ({
-                ...p,
-                price: p.pricingStocks?.[0]?.price || 0,
-                sku: p.pricingStocks?.[0]?.sku || 'N/A',
-                imageUrl: p.images?.find((img: any) => img.isPrimary)?.url || p.images?.[0]?.url || ''
-            }));
+            const now = new Date();
+            items = products
+                .filter(p => !p.expiryDate || new Date(p.expiryDate) > now)
+                .map(p => ({
+                    ...p,
+                    price: p.pricingStocks?.[0]?.price || 0,
+                    sku: p.pricingStocks?.[0]?.sku || 'N/A',
+                    imageUrl: p.images?.find((img: any) => img.isPrimary)?.url || p.images?.[0]?.url || ''
+                }));
             if (selectedCategory !== 'all') {
                 items = items.filter(item => item.categoryId === selectedCategory || item.category?.id === selectedCategory);
             }

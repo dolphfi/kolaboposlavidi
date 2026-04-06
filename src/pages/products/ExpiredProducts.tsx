@@ -1,5 +1,4 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import productService from '../../context/api/productservice';
@@ -51,7 +50,6 @@ import { cn } from '../../lib/utils';
 
 const ExpiredProducts: React.FC = () => {
     const { t } = useTranslation();
-    const navigate = useNavigate();
     const [products, setProducts] = React.useState<any[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
     const [currentPage, setCurrentPage] = React.useState(1);
@@ -66,7 +64,7 @@ const ExpiredProducts: React.FC = () => {
     const [manufacturedDate, setManufacturedDate] = React.useState<Date | undefined>();
     const [expiryDate, setExpiryDate] = React.useState<Date | undefined>();
 
-    const fetchExpiredProducts = async () => {
+    const fetchExpiredProducts = React.useCallback(async () => {
         try {
             setIsLoading(true);
             const data = await productService.getExpired();
@@ -76,11 +74,11 @@ const ExpiredProducts: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [t]);
 
     React.useEffect(() => {
         fetchExpiredProducts();
-    }, []);
+    }, [fetchExpiredProducts]);
 
     const handleEditClick = (product: any) => {
         setEditingProduct(product);
