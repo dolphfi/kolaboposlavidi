@@ -88,16 +88,24 @@ const PosAdmin: React.FC = () => {
         try {
             setLoading(true);
             const response = await posService.getAll(currentPage, itemsPerPage, searchTerm);
-            // Handle both legacy and paginated response
-            if (response.data) {
+            // Safely properly handle nested or legacy formats ensuring array
+            if (response?.data && Array.isArray(response.data)) {
                 setPosData(response.data);
-                setTotalItems(response.total);
-            } else {
+                setTotalItems(response.total || response.data.length);
+            } else if (response?.data?.data && Array.isArray(response.data.data)) {
+                setPosData(response.data.data);
+                setTotalItems(response.data.total || response.total || response.data.data.length);
+            } else if (Array.isArray(response)) {
                 setPosData(response);
                 setTotalItems(response.length);
+            } else {
+                setPosData([]);
+                setTotalItems(0);
             }
         } catch (error) {
             toast.error(t('pos.msg_load_error'));
+            setPosData([]);
+            setTotalItems(0);
         } finally {
             setLoading(false);
         }
