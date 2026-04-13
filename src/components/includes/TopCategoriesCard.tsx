@@ -1,121 +1,184 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
-import { Users, ChevronDown, Calendar } from 'lucide-react';
-import { PieChart, Pie, Cell } from 'recharts';
-import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from '../../components/ui/chart';
+import { Avatar, AvatarFallback } from '../../components/ui/avatar';
+import { Layers, ChevronDown, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
+import { useTranslation } from "react-i18next";
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "../ui/chart";
+import reportService from '../../context/api/reportService';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger
+} from "../ui/dropdown-menu";
 
-export const TopCategoriesCard: React.FC = () => {
-    const data = [
-        { name: 'Electronics', value: 698, color: '#f97316' }, // orange-500
-        { name: 'Sports', value: 545, color: '#ea580c' }, // orange-600 (darker) or similar
-        { name: 'Lifestyles', value: 456, color: '#1e293b' }, // slate-800 / dark blue
+interface TopCategoriesCardProps {
+    categories?: any[];
+}
+
+const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'];
+
+const chartConfig = {
+    totalSales: {
+        label: "Total Sales",
+    }
+} satisfies ChartConfig;
+
+export const TopCategoriesCard: React.FC<TopCategoriesCardProps> = ({ categories: initialData }) => {
+    const { t } = useTranslation();
+    const [selectedPeriod, setSelectedPeriod] = useState('today');
+    const [categoriesData, setCategoriesData] = useState<any[]>(initialData || []);
+    const [isLoading, setIsLoading] = useState(false);
+
+    const periods = [
+        { id: 'today', label: t('dashboard.today') },
+        { id: '1W', label: t('dashboard.weekly') },
+        { id: '1M', label: t('dashboard.monthly') },
+        { id: '1Y', label: t('dashboard.yearly') },
     ];
 
-    // Custom colors to match the design roughly
-    const COLORS = ['#f97316', '#c2410c', '#0f172a'];
+    const fetchTopCategories = async (period: string) => {
+        try {
+            setIsLoading(true);
+            const res = await reportService.getTopCategories(period);
+            setCategoriesData(res);
+        } catch (error) {
+            console.error('Error fetching top categories:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-    const chartConfig = {
-        electronics: { label: "Electronics", color: "#f97316" },
-        sports: { label: "Sports", color: "#c2410c" },
-        lifestyles: { label: "Lifestyles", color: "#0f172a" },
-    } satisfies ChartConfig;
+    useEffect(() => {
+        if (selectedPeriod !== 'today' || !initialData) {
+            fetchTopCategories(selectedPeriod);
+        } else if (initialData) {
+            setCategoriesData(initialData);
+        }
+    }, [selectedPeriod]);
+
+    const formatCurrency = (amount: number | string) => {
+        const value = typeof amount === 'string' ? parseFloat(amount) : amount;
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'HTG',
+            maximumFractionDigits: 0,
+        }).format(value);
+    };
+
+    const getInitials = (name: string) => {
+        return name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'CA';
+    };
 
     return (
         <Card className="shadow-sm h-full bg-white/5 backdrop-blur-sm border border-white/10 text-white flex flex-col">
-            <CardContent className="p-6 flex flex-col h-full">
+            <CardContent className="p-6 flex flex-col h-full relative">
                 {/* Header */}
                 <div className="flex items-center justify-between pb-4 border-b border-white/10 mb-4 px-6 -mx-6">
                     <div className="flex items-center gap-2">
-                        <div className="p-2 bg-orange-500/10 rounded-lg">
-                            <Users className="h-5 w-5 text-orange-500" />
+                        <div className="p-2 bg-indigo-500/10 rounded-lg">
+                            <Layers className="h-5 w-5 text-indigo-500" />
                         </div>
-                        <h3 className="text-lg font-bold text-white">Top Categories</h3>
+                        <h3 className="text-lg font-bold text-white">{t('dashboard.top_categories')}</h3>
                     </div>
 
-                    <Button variant="outline" size="sm" className="h-8 text-xs bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:text-white gap-2">
-                        <Calendar className="h-3 w-3" />
-                        Weekly
-                        <ChevronDown className="h-3 w-3" />
-                    </Button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm" className="h-8 text-xs bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:text-white gap-2">
+                                {isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : periods.find(p => p.id === selectedPeriod)?.label || t('dashboard.today')}
+                                <ChevronDown className="h-3 w-3" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="bg-slate-900 border-white/10 text-white">
+                            {periods.map((p) => (
+                                <DropdownMenuItem 
+                                    key={p.id} 
+                                    onSelect={() => setSelectedPeriod(p.id)}
+                                    className="hover:bg-white/10 cursor-pointer"
+                                >
+                                    {p.label}
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
 
-                <div className="flex-1 flex flex-col md:flex-row items-center justify-between gap-4">
-                    {/* Donut Chart */}
-                    <div className="w-full md:w-1/2 h-[180px] relative">
-                        <ChartContainer config={chartConfig} className="h-full w-full">
-                            <PieChart>
-                                <Pie
-                                    data={data}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={50}
-                                    outerRadius={80}
-                                    paddingAngle={5}
-                                    dataKey="value"
-                                    stroke="none"
-                                >
-                                    {data.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                    ))}
-                                </Pie>
-                                <ChartTooltip
-                                    cursor={false}
-                                    content={
-                                        <ChartTooltipContent
-                                            hideLabel
-                                            nameKey="name"
-                                            indicator="dot"
-                                            className="bg-black/60 backdrop-blur-xl border border-white/10 text-white min-w-[120px] shadow-2xl [&_.text-foreground]:text-white"
-                                            labelClassName="text-slate-300 mb-1 border-b border-white/10 pb-1"
+                <div className={`flex flex-col sm:flex-row gap-6 h-full transition-opacity ${isLoading ? "opacity-50" : "opacity-100"}`}>
+                    {/* Pie Chart */}
+                    <div className="w-full sm:w-1/2 h-48 flex items-center justify-center">
+                        {categoriesData.length > 0 ? (
+                            <ChartContainer config={chartConfig} className="h-full w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie
+                                            data={categoriesData}
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={41}
+                                            outerRadius={70}
+                                            paddingAngle={5}
+                                            dataKey="totalSales"
+                                            stroke="none"
+                                        >
+                                            {categoriesData.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                            ))}
+                                        </Pie>
+                                        <ChartTooltip
+                                            cursor={false}
+                                            content={
+                                                <ChartTooltipContent
+                                                    hideLabel
+                                                    nameKey="categoryName"
+                                                    indicator="dot"
+                                                    className="bg-black/60 backdrop-blur-xl border border-white/10 text-white min-w-[120px] shadow-2xl [&_.text-foreground]:text-white"
+                                                />
+                                            }
                                         />
-                                    }
-                                />
-                            </PieChart>
-                        </ChartContainer>
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </ChartContainer>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center text-slate-500 gap-2 opacity-50">
+                                <Layers className="h-8 w-8" />
+                                <span className="text-[10px]">{t('common.no_data')}</span>
+                            </div>
+                        )}
                     </div>
 
-                    {/* Legend */}
-                    {/* Legend */}
-                    <div className="w-full md:w-1/2 flex justify-start md:justify-end overflow-hidden">
-                        <div className="flex flex-row md:flex-col flex-nowrap justify-start md:justify-end gap-4 w-full overflow-x-auto no-scrollbar pb-1">
-                            {data.map((item, index) => (
-                                <div key={item.name} className="flex flex-col items-start px-4 first:pl-0 md:px-0 border-r border-white/10 last:border-r-0 md:border-r-0 shrink-0">
-                                    <div className="flex items-center gap-2 text-xs text-slate-400 mb-0.5">
-                                        <span className="w-1.5 h-3 rounded-md" style={{ backgroundColor: COLORS[index] }}></span>
-                                        {item.name}
-                                    </div>
-                                    <div className="flex items-baseline gap-1">
-                                        <span className="text-xl font-bold text-white">{item.value}</span>
-                                        <span className="text-xs text-slate-500">Sales</span>
+                    {/* List */}
+                    <div className="w-full sm:w-1/2 flex flex-col gap-3 justify-center">
+                        {categoriesData.map((category, index) => (
+                            <div key={index} className="flex items-center justify-between group">
+                                <div className="flex items-center gap-3 overflow-hidden">
+                                    <Avatar className="h-8 w-8 rounded-lg" style={{ backgroundColor: `${COLORS[index % COLORS.length]}20` }}>
+                                        <AvatarFallback className="bg-transparent text-white/70 text-[10px] font-bold">
+                                            {getInitials(category.categoryName)}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex flex-col min-w-0">
+                                        <span className="text-xs font-bold text-white group-hover:text-indigo-400 transition-colors truncate">
+                                            {category.categoryName}
+                                        </span>
+                                        <span className="text-[10px] text-slate-400 font-bold">
+                                            {formatCurrency(category.totalSales)}
+                                        </span>
                                     </div>
                                 </div>
-                            ))}
-                        </div>
+                                <div className={`flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${
+                                    category.growth >= 0 
+                                    ? "text-emerald-500 bg-emerald-500/10" 
+                                    : "text-rose-500 bg-rose-500/10"
+                                }`}>
+                                    {category.growth >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                                    {category.growth >= 0 ? "+" : ""}{category.growth}%
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
-
-                {/* Category Statistics */}
-                <div className="mt-4 pt-4 border-t border-white/10">
-                    <h4 className="text-sm font-semibold text-white mb-3">Category Statistics</h4>
-                    <div className="flex flex-col gap-2">
-                        <div className="flex items-center justify-between p-2 bg-white/5 rounded-lg border border-white/5">
-                            <div className="flex items-center gap-2 min-w-0">
-                                <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0"></span>
-                                <span className="text-xs text-slate-300 truncate">Total Number Of Categories</span>
-                            </div>
-                            <span className="text-sm font-bold text-white pl-2">698</span>
-                        </div>
-                        <div className="flex items-center justify-between p-2 bg-white/5 rounded-lg border border-white/5">
-                            <div className="flex items-center gap-2 min-w-0">
-                                <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0"></span>
-                                <span className="text-xs text-slate-300 truncate">Total Number Of Products</span>
-                            </div>
-                            <span className="text-sm font-bold text-white pl-2">7899</span>
-                        </div>
-                    </div>
-                </div>
-
             </CardContent>
         </Card>
     );

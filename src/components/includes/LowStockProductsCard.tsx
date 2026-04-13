@@ -1,42 +1,22 @@
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
-import { Avatar, AvatarFallback } from '../../components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
 import { Link } from 'react-router-dom';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Package } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
-export const LowStockProductsCard: React.FC = () => {
-    const products = [
-        {
-            id: '665814',
-            name: 'Dell XPS 13',
-            count: '08',
-            imageColor: 'bg-orange-500'
-        },
-        {
-            id: '940004',
-            name: 'Vacuum Cleaner Robot',
-            count: '14',
-            imageColor: 'bg-purple-500' // Using purple as placeholder for "Vacuum" image style
-        },
-        {
-            id: '325569',
-            name: 'KitchenAid Stand Mixer',
-            count: '21',
-            imageColor: 'bg-yellow-700'
-        },
-        {
-            id: '124588',
-            name: 'Levi\'s Trucker Jacket',
-            count: '12',
-            imageColor: 'bg-blue-800'
-        },
-        {
-            id: '365586',
-            name: 'Lay\'s Classic',
-            count: '10',
-            imageColor: 'bg-yellow-500'
-        }
-    ];
+interface LowStockProductsCardProps {
+    products?: any[];
+}
+
+export const LowStockProductsCard: React.FC<LowStockProductsCardProps> = ({ products }) => {
+    const { t } = useTranslation();
+
+    const displayProducts = products || [];
+
+    const getInitials = (name: string) => {
+        return name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'PR';
+    };
 
     return (
         <Card className="shadow-sm h-full bg-white/5 backdrop-blur-sm border border-white/10 text-white flex flex-col">
@@ -47,41 +27,48 @@ export const LowStockProductsCard: React.FC = () => {
                         <div className="p-2 bg-orange-500/10 rounded-lg">
                             <AlertTriangle className="h-5 w-5 text-orange-500" />
                         </div>
-                        <h3 className="text-lg font-bold text-white">Low Stock Products</h3>
+                        <h3 className="text-lg font-bold text-white">{t('dashboard.low_stock_products')}</h3>
                     </div>
 
                     <Link to="/products">
                         <Button variant="link" className="text-xs font-medium text-slate-400 hover:text-white decoration-slate-600 hover:decoration-white h-auto p-0">
-                            View All
+                            {t('dashboard.view_all')}
                         </Button>
                     </Link>
                 </div>
 
                 {/* List */}
                 <div className="flex flex-col gap-4">
-                    {products.map((product) => (
-                        <div key={product.id} className="flex items-center justify-between group">
+                    {displayProducts.map((product, index) => (
+                        <div key={index} className="flex items-center justify-between group">
                             <div className="flex items-center gap-3 overflow-hidden">
                                 {/* Product Image */}
-                                <Avatar className={`h-10 w-10 rounded-lg ${product.imageColor}`}>
-                                    <AvatarFallback className="bg-transparent text-white/50 text-xs font-bold">IMG</AvatarFallback>
+                                <Avatar className="h-10 w-10 rounded-lg bg-orange-500/20">
+                                    {product.imageUrl && <AvatarImage src={product.imageUrl} alt={product.productName} className="object-cover" />}
+                                    <AvatarFallback className="bg-transparent text-orange-400 text-xs font-bold">
+                                        <Package className="h-4 w-4" />
+                                    </AvatarFallback>
                                 </Avatar>
                                 <div className="flex flex-col min-w-0">
-                                    <span className="text-sm font-bold text-white group-hover:text-orange-400 transition-colors truncate">
-                                        {product.name}
+                                    <span className="text-sm font-bold text-white group-hover:text-amber-500 transition-colors truncate">
+                                        {product.productName}
                                     </span>
-                                    <span className="text-xs text-slate-400">
-                                        ID: #{product.id}
-                                    </span>
+                                    <div className="flex items-center gap-2 text-xs text-slate-400">
+                                        <span className="text-orange-500 truncate">{t('dashboard.stock')}: {product.currentStock}</span>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="flex flex-col items-end shrink-0 pl-2">
-                                <span className="text-[10px] uppercase font-bold text-slate-500 mb-0.5">Instock</span>
-                                <span className="text-sm font-bold text-orange-500">{product.count}</span>
-                            </div>
+                            <button className="bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">
+                                {t('dashboard.add_stock')}
+                            </button>
                         </div>
                     ))}
+                    {displayProducts.length === 0 && (
+                        <div className="text-center py-8 text-slate-500 text-sm">
+                            {t('dashboard.no_records_found')}
+                        </div>
+                    )}
                 </div>
             </CardContent>
         </Card>

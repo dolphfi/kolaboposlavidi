@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next';
 import {
     Search, Plus, Minus, Package, Info, ChevronRight,
     Store, Warehouse,
-    Loader2, Save, RefreshCw, Check
+    Loader2, Save, RefreshCw, Check,
+    LayoutGrid, List
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -37,6 +38,13 @@ const Stock: React.FC = () => {
     const [refillPos, setRefillPos] = useState<PointOfSale | null>(null);
     const [refillQuantity, setRefillQuantity] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>(
+        (localStorage.getItem('stockViewMode') as 'grid' | 'list') || 'list'
+    );
+
+    useEffect(() => {
+        localStorage.setItem('stockViewMode', viewMode);
+    }, [viewMode]);
 
     // New Variant State
     const [newVariant, setNewVariant] = useState({
@@ -171,6 +179,20 @@ const Stock: React.FC = () => {
         setIsRefillOpen(true);
     };
 
+    const getTotalStock = (product: Product) => {
+        return product.pricingStocks?.reduce((acc, ps) =>
+            acc + (ps.posStocks?.reduce((sum, s) => sum + s.stock, 0) || 0), 0
+        ) || 0;
+    };
+
+    const isProductLowStock = (product: Product) => {
+        return product.pricingStocks?.some(ps => {
+            const totalVariantStock = ps.posStocks?.reduce((sum, s) => sum + s.stock, 0) || 0;
+            const alertThreshold = ps.quantityAlert || 10; // Default to 10 if not set
+            return totalVariantStock > 0 && totalVariantStock <= alertThreshold;
+        });
+    };
+
     return (
         <div className="p-6 space-y-6 max-w-7xl mx-auto animate-in fade-in duration-500">
             {/* Header */}
@@ -179,15 +201,35 @@ const Stock: React.FC = () => {
                     <h1 className="text-3xl font-bold text-white tracking-tight">{t('stock.title')}</h1>
                     <p className="text-slate-400 mt-1">{t('sidebar.inventory')} / {t('sidebar.stock_refill')}</p>
                 </div>
-                <Button
-                    variant="outline"
-                    onClick={fetchData}
-                    className="bg-white/5 border-white/10 text-white hover:bg-white/10"
-                    disabled={isLoading}
-                >
-                    <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                    {t('common.refresh_button') || 'Rafrechi'}
-                </Button>
+                <div className="flex items-center gap-3">
+                    <div className="flex items-center bg-white/5 p-1 rounded-xl border border-white/10">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setViewMode('grid')}
+                            className={`h-8 w-8 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-orange-500 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                        >
+                            <LayoutGrid className="h-4 w-4" />
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setViewMode('list')}
+                            className={`h-8 w-8 rounded-lg transition-all ${viewMode === 'list' ? 'bg-orange-500 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                        >
+                            <List className="h-4 w-4" />
+                        </Button>
+                    </div>
+                    <Button
+                        variant="outline"
+                        onClick={fetchData}
+                        className="bg-white/5 border-white/10 text-white hover:bg-white/10 h-10"
+                        disabled={isLoading}
+                    >
+                        <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                        {t('common.refresh_button') || 'Rafrechi'}
+                    </Button>
+                </div>
             </div>
 
             {/* Search Bar */}
@@ -220,159 +262,258 @@ const Stock: React.FC = () => {
                     </div>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 gap-4">
-                    {filteredProducts.map((product) => (
-                        <Card
-                            key={product.id}
-                            className={`bg-slate-900/40 border-white/10 hover:border-orange-500/30 transition-all duration-300 overflow-hidden ${selectedProduct?.id === product.id ? 'ring-1 ring-orange-500/50' : ''}`}
-                        >
-                            <div
-                                className="p-4 flex items-center justify-between cursor-pointer"
+                <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" : "grid grid-cols-1 gap-4"}>
+                    {filteredProducts.map((product) => {
+                        const totalStock = getTotalStock(product);
+                        const isOutOfStock = totalStock === 0;
+                        const isLowStock = isProductLowStock(product);
+
+                        return viewMode === 'list' ? (
+                            <Card
+                                key={product.id}
+                                className={`bg-slate-900/40 border-white/10 hover:border-orange-500/30 transition-all duration-300 overflow-hidden ${selectedProduct?.id === product.id ? 'ring-1 ring-orange-500/50' : ''} ${isOutOfStock ? 'border-red-500/30' : ''}`}
+                            >
+                                <div
+                                    className="p-4 flex items-center justify-between cursor-pointer"
+                                    onClick={() => setSelectedProduct(selectedProduct?.id === product.id ? null : product)}
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <div className={`h-12 w-12 rounded-xl border flex items-center justify-center shadow-inner transition-colors ${isOutOfStock ? 'bg-red-500/10 border-red-500/20' : 'bg-orange-500/10 border-orange-500/20'}`}>
+                                            <Package className={`h-6 w-6 ${isOutOfStock ? 'text-red-500' : 'text-orange-500'}`} />
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <h3 className="text-lg font-semibold text-white leading-tight">{product.name}</h3>
+                                                {isOutOfStock && (
+                                                    <Badge className="bg-red-500 text-white border-none text-[10px] h-5 px-1.5 uppercase font-black">
+                                                        {t('stock.rupture')}
+                                                    </Badge>
+                                                )}
+                                                {isLowStock && (
+                                                    <Badge className="bg-orange-500/20 text-orange-500 border-orange-500/30 text-[10px] h-5 px-1.5 uppercase font-black">
+                                                        {t('stock.low_stock')}
+                                                    </Badge>
+                                                )}
+                                                <Badge variant="outline" className={`px-2 py-0 h-5 text-[10px] font-bold uppercase tracking-wider ${product.productType === 'variable'
+                                                    ? 'bg-orange-500/10 text-orange-400 border-orange-500/20'
+                                                    : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                                    }`}>
+                                                    {product.productType === 'variable' ? t('products.variable_product') : t('products.single_product')}
+                                                </Badge>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Badge variant="outline" className="bg-white/5 text-slate-400 border-white/10 font-normal">
+                                                    {product.category?.name}
+                                                </Badge>
+                                                <span className="text-slate-600 text-xs">•</span>
+                                                <span className="text-xs text-slate-500">
+                                                    {product.pricingStocks?.length || 0} {
+                                                        product.pricingStocks?.length === 1
+                                                            ? t('products.variation')
+                                                            : t('products.variants')
+                                                    }
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        <div className="text-right hidden sm:block">
+                                            <p className="text-xs text-slate-500 uppercase font-bold tracking-widest">{t('products.qty')}</p>
+                                            <p className={`text-xl font-black ${isOutOfStock ? 'text-red-500 animate-pulse' : 'text-white'}`}>
+                                                {totalStock}
+                                            </p>
+                                        </div>
+                                        <ChevronRight className={`h-6 w-6 text-slate-600 transition-transform duration-300 ${selectedProduct?.id === product.id ? 'rotate-90 text-orange-500' : ''}`} />
+                                    </div>
+                                </div>
+
+                                {/* Expanded Variants Area (List View) */}
+                                {selectedProduct?.id === product.id && (
+                                    <div className="border-t border-white/5 bg-white/[0.02] p-4 animate-in slide-in-from-top-2 duration-300">
+                                        <div className="flex items-center justify-between mb-6">
+                                            <h4 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                                                <Info className="h-4 w-4 text-orange-500" />
+                                                {product.name} - {t('products.variants')}
+                                            </h4>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-8 border-orange-500/50 text-orange-500 hover:bg-orange-500/10 gap-1"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setSelectedProduct(product);
+                                                    setIsAddVariantOpen(true);
+                                                }}
+                                            >
+                                                <Plus className="h-3.5 w-3.5" />
+                                                {t('stock.add_variant')}
+                                            </Button>
+                                        </div>
+                                        <div className="grid grid-cols-1 gap-6">
+                                            {product.pricingStocks?.map((variant) => (
+                                                <div key={variant.id} className="space-y-4">
+                                                    <div className="flex items-center justify-between pb-2 border-b border-white/5">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-xs font-mono text-orange-400">
+                                                                {variant.sku}
+                                                            </div>
+                                                            <span className="text-white font-medium">
+                                                                {variant.variantName
+                                                                    ? variant.variantName
+                                                                    : (product.pricingStocks && product.pricingStocks.length > 1
+                                                                        ? t('products.default_variant')
+                                                                        : t('products.single_product'))
+                                                                }
+                                                            </span>
+                                                        </div>
+                                                        <div className="text-orange-500 font-bold">${Number(variant.price).toLocaleString()}</div>
+                                                    </div>
+
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-3">
+                                                        {pointsOfSale.map((pos) => {
+                                                            const currentStock = variant.posStocks?.find(s => s.posId === pos.id)?.stock || 0;
+                                                            const isOutOfStock = currentStock === 0;
+
+                                                            return (
+                                                                <div
+                                                                    key={pos.id}
+                                                                    className={`p-3 rounded-xl border transition-all group/pos ${!isOutOfStock
+                                                                        ? 'bg-emerald-500/5 border-emerald-500/10 hover:border-emerald-500/30'
+                                                                        : 'bg-slate-900 border-white/5 opacity-80 hover:opacity-100 hover:border-white/20'
+                                                                        }`}
+                                                                >
+                                                                    <div className="flex items-center justify-between mb-2">
+                                                                        <div className="flex items-center gap-2">
+                                                                            {pos.type === 'store' ? (
+                                                                                <Store className={`h-3.5 w-3.5 ${!isOutOfStock ? 'text-emerald-500' : 'text-slate-500'}`} />
+                                                                            ) : (
+                                                                                <Warehouse className={`h-3.5 w-3.5 ${!isOutOfStock ? 'text-blue-500' : 'text-slate-500'}`} />
+                                                                            )}
+                                                                            <span className="text-[11px] font-semibold text-slate-300 truncate max-w-[100px]">
+                                                                                {pos.name}
+                                                                            </span>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div className="flex items-center justify-between gap-2">
+                                                                        <div>
+                                                                            <p className={`text-xl font-black leading-none ${!isOutOfStock ? 'text-white' : 'text-slate-600'}`}>
+                                                                                {currentStock}
+                                                                            </p>
+                                                                        </div>
+                                                                        <Button
+                                                                            size="sm"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                openRefillDialog(variant, pos);
+                                                                            }}
+                                                                            className="rounded-lg bg-orange-500 hover:bg-orange-600 shadow-lg shadow-orange-500/20 active:scale-95 transition-all h-7 px-2 text-[10px]"
+                                                                        >
+                                                                            <Plus className="h-3 w-3 mr-1 stroke-[3px]" />
+                                                                            {t('stock.refill_action')}
+                                                                        </Button>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </Card>
+                        ) : (
+                            <Card
+                                key={product.id}
+                                className={`bg-slate-900/40 border-white/10 hover:border-orange-500/30 transition-all duration-300 overflow-hidden group/grid ${selectedProduct?.id === product.id ? 'ring-2 ring-orange-500' : ''} ${isOutOfStock ? 'border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.1)]' : ''}`}
                                 onClick={() => setSelectedProduct(selectedProduct?.id === product.id ? null : product)}
                             >
-                                <div className="flex items-center gap-4">
-                                    <div className="h-12 w-12 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center shadow-inner">
-                                        <Package className="h-6 w-6 text-orange-500" />
-                                    </div>
-                                    <div>
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <h3 className="text-lg font-semibold text-white leading-tight">{product.name}</h3>
-                                            <Badge variant="outline" className={`px-2 py-0 h-5 text-[10px] font-bold uppercase tracking-wider ${product.productType === 'variable'
-                                                ? 'bg-orange-500/10 text-orange-400 border-orange-500/20'
-                                                : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                                                }`}>
-                                                {product.productType === 'variable' ? t('products.variable_product') : t('products.single_product')}
-                                            </Badge>
+                                <CardContent className="p-4 flex flex-col items-center text-center space-y-3 cursor-pointer">
+                                    <div className="relative">
+                                        <div className={`h-16 w-16 rounded-2xl border flex items-center justify-center shadow-inner group-hover/grid:scale-110 transition-transform duration-500 ${isOutOfStock ? 'bg-red-500/20 border-red-500/30' : 'bg-gradient-to-br from-orange-500/20 to-orange-600/5 border-orange-500/20'}`}>
+                                            <Package className={`h-8 w-8 ${isOutOfStock ? 'text-red-500' : 'text-orange-500'}`} />
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                            <Badge variant="outline" className="bg-white/5 text-slate-400 border-white/10 font-normal">
-                                                {product.category?.name}
+                                        {isOutOfStock ? (
+                                            <Badge className="absolute -top-2 -right-2 bg-red-500 border-none text-[8px] h-5 px-1 flex items-center justify-center rounded-lg font-black shadow-lg uppercase">
+                                                {t('stock.rupture')}
                                             </Badge>
-                                            <span className="text-slate-600 text-xs">•</span>
-                                            <span className="text-xs text-slate-500">
-                                                {product.pricingStocks?.length || 0} {
-                                                    product.pricingStocks?.length === 1
-                                                        ? t('products.variation')
-                                                        : t('products.variants')
-                                                }
-                                            </span>
-                                        </div>
+                                        ) : isLowStock ? (
+                                            <Badge className="absolute -top-2 -right-2 bg-orange-500 border-none text-[8px] h-5 px-1 flex items-center justify-center rounded-lg font-black shadow-lg uppercase">
+                                                {t('stock.low_stock')}
+                                            </Badge>
+                                        ) : (
+                                            <Badge className="absolute -top-2 -right-2 bg-orange-500 border-none text-[10px] h-5 w-5 flex items-center justify-center p-0 rounded-full font-bold shadow-lg">
+                                                {product.pricingStocks?.length || 0}
+                                            </Badge>
+                                        )}
                                     </div>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                    <div className="text-right hidden sm:block">
-                                        <p className="text-xs text-slate-500 uppercase font-bold tracking-widest">{t('products.qty')}</p>
-                                        <p className="text-xl font-black text-white">
-                                            {product.pricingStocks?.reduce((acc, ps) =>
-                                                acc + (ps.posStocks?.reduce((sum, s) => sum + s.stock, 0) || 0), 0
-                                            )}
-                                        </p>
-                                    </div>
-                                    <ChevronRight className={`h-6 w-6 text-slate-600 transition-transform duration-300 ${selectedProduct?.id === product.id ? 'rotate-90 text-orange-500' : ''}`} />
-                                </div>
-                            </div>
 
-                            {/* Expanded Variants Area */}
-                            {selectedProduct?.id === product.id && (
-                                <div className="border-t border-white/5 bg-white/[0.02] p-4 animate-in slide-in-from-top-2 duration-300">
-                                    <div className="flex items-center justify-between mb-6">
-                                        <h4 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
-                                            <Info className="h-4 w-4 text-orange-500" />
-                                            {product.name} - {t('products.variants')}
-                                        </h4>
+                                    <div className="space-y-1">
+                                        <h3 className={`text-sm font-bold line-clamp-1 group-hover/grid:text-orange-400 transition-colors uppercase tracking-tight ${isOutOfStock ? 'text-red-400' : 'text-white'}`}>{product.name}</h3>
+                                        <p className="text-[10px] text-slate-500 font-medium">{product.category?.name || t('common.no_category')}</p>
+                                    </div>
+
+                                    <div className="w-full pt-2 border-t border-white/5 flex items-center justify-between">
+                                        <div>
+                                            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-tighter">{t('products.qty')}</p>
+                                            <p className={`text-lg font-black leading-none ${isOutOfStock ? 'text-red-500 animate-pulse' : 'text-white'}`}>
+                                                {totalStock}
+                                            </p>
+                                        </div>
                                         <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="h-8 border-orange-500/50 text-orange-500 hover:bg-orange-500/10 gap-1"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setSelectedProduct(product);
-                                                setIsAddVariantOpen(true);
-                                            }}
+                                            variant="ghost"
+                                            size="icon"
+                                            className={`h-8 w-8 rounded-full transition-all ${isOutOfStock ? 'bg-red-500/10 text-red-500 group-hover/grid:bg-red-500 group-hover/grid:text-white' : 'bg-white/5 text-slate-500 group-hover/grid:bg-orange-500 group-hover/grid:text-white'}`}
                                         >
-                                            <Plus className="h-3.5 w-3.5" />
-                                            {t('stock.add_variant')}
+                                            <ChevronRight className={`h-4 w-4 transition-transform ${selectedProduct?.id === product.id ? 'rotate-90' : ''}`} />
                                         </Button>
                                     </div>
-                                    <div className="grid grid-cols-1 gap-6">
-                                        {product.pricingStocks?.map((variant) => (
-                                            <div key={variant.id} className="space-y-4">
-                                                <div className="flex items-center justify-between pb-2 border-b border-white/5">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-xs font-mono text-orange-400">
-                                                            {variant.sku}
-                                                        </div>
-                                                        <span className="text-white font-medium">
-                                                            {variant.variantName
-                                                                ? variant.variantName
-                                                                : (product.pricingStocks && product.pricingStocks.length > 1
-                                                                    ? t('products.default_variant')
-                                                                    : t('products.single_product'))
+                                </CardContent>
+                                {selectedProduct?.id === product.id && (
+                                    <div className="p-3 bg-white/[0.03] border-t border-white/5 space-y-3">
+                                        {product.pricingStocks?.slice(0, 2).map(variant => (
+                                            <div key={variant.id} className="flex items-center justify-between text-[11px]">
+                                                <span className="text-slate-400 truncate max-w-[80px]">{variant.variantName || 'Default'}</span>
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="font-bold text-white">
+                                                        {variant.posStocks?.reduce((sum, s) => sum + s.stock, 0) || 0}
+                                                    </span>
+                                                    <Button
+                                                        size="icon"
+                                                        className="h-5 w-5 rounded-md bg-orange-500 p-0"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            // For grid, we just open the list view for detailed management if needed
+                                                            // or open the first POS available for refill
+                                                            if (variant.posStocks?.[0]) {
+                                                                const posRef = pointsOfSale.find(p => p.id === variant.posStocks?.[0].posId);
+                                                                if (posRef) openRefillDialog(variant, posRef);
                                                             }
-                                                        </span>
-                                                    </div>
-                                                    <div className="text-orange-500 font-bold">${Number(variant.price).toLocaleString()}</div>
-                                                </div>
-
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                    {pointsOfSale.map((pos) => {
-                                                        const currentStock = variant.posStocks?.find(s => s.posId === pos.id)?.stock || 0;
-                                                        const isOutOfStock = currentStock === 0;
-
-                                                        return (
-                                                            <div
-                                                                key={pos.id}
-                                                                className={`p-4 rounded-2xl border transition-all group/pos ${!isOutOfStock
-                                                                    ? 'bg-emerald-500/5 border-emerald-500/10 hover:border-emerald-500/30'
-                                                                    : 'bg-slate-900 border-white/5 opacity-80 hover:opacity-100 hover:border-white/20'
-                                                                    }`}
-                                                            >
-                                                                <div className="flex items-center justify-between mb-3">
-                                                                    <div className="flex items-center gap-2">
-                                                                        {pos.type === 'store' ? (
-                                                                            <Store className={`h-4 w-4 ${!isOutOfStock ? 'text-emerald-500' : 'text-slate-500'}`} />
-                                                                        ) : (
-                                                                            <Warehouse className={`h-4 w-4 ${!isOutOfStock ? 'text-blue-500' : 'text-slate-500'}`} />
-                                                                        )}
-                                                                        <span className="text-sm font-semibold text-slate-300 truncate max-w-[120px]">
-                                                                            {pos.name}
-                                                                        </span>
-                                                                    </div>
-                                                                    {!isOutOfStock && (
-                                                                        <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-                                                                    )}
-                                                                </div>
-
-                                                                <div className="flex items-end justify-between gap-2">
-                                                                    <div>
-                                                                        <p className="text-[10px] text-slate-500 uppercase font-black tracking-tighter mb-0.5">{t('stock.current')}</p>
-                                                                        <p className={`text-2xl font-black leading-none ${!isOutOfStock ? 'text-white' : 'text-slate-600'}`}>
-                                                                            {currentStock}
-                                                                        </p>
-                                                                    </div>
-                                                                    <Button
-                                                                        size="sm"
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            openRefillDialog(variant, pos);
-                                                                        }}
-                                                                        className="rounded-xl bg-orange-500 hover:bg-orange-600 shadow-lg shadow-orange-500/20 active:scale-95 transition-all h-9 px-4"
-                                                                    >
-                                                                        <Plus className="h-4 w-4 mr-1 stroke-[3px]" />
-                                                                        {t('stock.refill_action')}
-                                                                    </Button>
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    })}
+                                                        }}
+                                                    >
+                                                        <Plus className="h-3 w-3 text-white" />
+                                                    </Button>
                                                 </div>
                                             </div>
                                         ))}
+                                        {product.pricingStocks && product.pricingStocks.length > 2 && (
+                                            <Button
+                                                variant="link"
+                                                className="w-full h-auto p-0 text-[10px] text-orange-500"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setViewMode('list');
+                                                }}
+                                            >
+                                                +{product.pricingStocks.length - 2} {t('products.variants')} ({t('stock.list_view')})
+                                            </Button>
+                                        )}
                                     </div>
-                                </div>
-                            )}
-                        </Card>
-                    ))}
+                                )}
+                            </Card>
+                        )
+                    })}
                 </div>
             )}
 

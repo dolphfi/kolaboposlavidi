@@ -1,84 +1,61 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Avatar, AvatarFallback } from '../../components/ui/avatar';
 import { ShoppingCart, ChevronDown, Calendar } from 'lucide-react';
+import { useTranslation } from "react-i18next";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger
+} from "../ui/dropdown-menu";
 
-type SaleStatus = 'Processing' | 'Completed' | 'Cancelled' | 'Onhold';
-
-interface Sale {
-    id: number;
-    productName: string;
-    category: string;
-    price: string;
-    date: string;
-    status: SaleStatus;
-    imageColor: string;
-}
-
-const getStatusStyles = (status: SaleStatus): string => {
+const getStatusStyles = (status: string): string => {
     switch (status) {
-        case 'Processing':
-            return 'bg-blue-500/20 text-blue-400';
-        case 'Completed':
+        case 'COMPLETED':
             return 'bg-emerald-500/20 text-emerald-400';
-        case 'Cancelled':
+        case 'CANCELLED':
             return 'bg-rose-500/20 text-rose-400';
-        case 'Onhold':
+        case 'PAUSED':
             return 'bg-amber-500/20 text-amber-400';
+        case 'PENDING':
+            return 'bg-blue-500/20 text-blue-400';
         default:
             return 'bg-slate-500/20 text-slate-400';
     }
 };
 
-export const RecentSalesCard: React.FC = () => {
-    const sales: Sale[] = [
-        {
-            id: 1,
-            productName: 'Apple Watch Series 9',
-            category: 'Electronics',
-            price: '$640',
-            date: 'Today',
-            status: 'Processing',
-            imageColor: 'bg-slate-800'
-        },
-        {
-            id: 2,
-            productName: 'Gold Bracelet',
-            category: 'Fashion',
-            price: '$126',
-            date: 'Today',
-            status: 'Cancelled',
-            imageColor: 'bg-amber-700'
-        },
-        {
-            id: 3,
-            productName: 'Parachute Down Duvet',
-            category: 'Health',
-            price: '$69',
-            date: '15 Jan 2025',
-            status: 'Onhold',
-            imageColor: 'bg-rose-400'
-        },
-        {
-            id: 4,
-            productName: 'YETI Rambler Tumbler',
-            category: 'Sports',
-            price: '$65',
-            date: '12 Jan 2025',
-            status: 'Processing',
-            imageColor: 'bg-yellow-500'
-        },
-        {
-            id: 5,
-            productName: 'Osmo Genius Starter Kit',
-            category: 'Lifestyles',
-            price: '$87.56',
-            date: '11 Jan 2025',
-            status: 'Completed',
-            imageColor: 'bg-teal-500'
-        }
+interface RecentSalesCardProps {
+    sales?: any[];
+}
+
+export const RecentSalesCard: React.FC<RecentSalesCardProps> = ({ sales }) => {
+    const { t } = useTranslation();
+    const [period, setPeriod] = useState('1W');
+
+    const formatCurrency = (amount: number) => {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'HTG',
+        }).format(amount);
+    };
+
+    const getInitials = (firstName: string, lastName: string) => {
+        if (!firstName && !lastName) return 'CU';
+        return `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase();
+    };
+
+    const displaySales = sales || [];
+
+    const periods = [
+        { value: 'today', label: t('dashboard.today') },
+        { value: '1W', label: t('dashboard.weekly') },
+        { value: '1M', label: t('dashboard.monthly') },
+        { value: '1Y', label: t('dashboard.yearly') }
     ];
+
+    const currentPeriodLabel = periods.find(p => p.value === period)?.label || t('dashboard.weekly');
 
     return (
         <Card className="shadow-sm h-full bg-white/5 backdrop-blur-sm border border-white/10 text-white flex flex-col">
@@ -89,46 +66,69 @@ export const RecentSalesCard: React.FC = () => {
                         <div className="p-2 bg-pink-500/10 rounded-lg">
                             <ShoppingCart className="h-5 w-5 text-pink-500" />
                         </div>
-                        <h3 className="text-lg font-bold text-white">Recent Sales</h3>
+                        <h3 className="text-lg font-bold text-white">{t('dashboard.recent_sales')}</h3>
                     </div>
 
-                    <Button variant="outline" size="sm" className="h-8 text-xs bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:text-white gap-2">
-                        <Calendar className="h-3 w-3" />
-                        Weekly
-                        <ChevronDown className="h-3 w-3" />
-                    </Button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm" className="h-8 text-xs bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:text-white gap-2">
+                                <Calendar className="h-3 w-3" />
+                                {currentPeriodLabel}
+                                <ChevronDown className="h-3 w-3" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="bg-slate-900 border-white/10 text-white">
+                            {periods.map((p) => (
+                                <DropdownMenuItem 
+                                    key={p.value} 
+                                    onClick={() => setPeriod(p.value)}
+                                    className="hover:bg-white/10 cursor-pointer"
+                                >
+                                    {p.label}
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
 
                 {/* List */}
                 <div className="flex flex-col gap-4">
-                    {sales.map((sale) => (
+                    {displaySales.map((sale) => (
                         <div key={sale.id} className="flex items-center justify-between group">
                             <div className="flex items-center gap-3 overflow-hidden">
-                                {/* Product Image */}
-                                <Avatar className={`h-10 w-10 rounded-lg ${sale.imageColor}`}>
-                                    <AvatarFallback className="bg-transparent text-white/50 text-xs font-bold">IMG</AvatarFallback>
+                                {/* Product Image / Initials */}
+                                <Avatar className="h-10 w-10 rounded-lg bg-white/10">
+                                    <AvatarFallback className="bg-transparent text-white/50 text-xs font-bold">
+                                        {getInitials(sale.customer?.firstName, sale.customer?.lastName)}
+                                    </AvatarFallback>
                                 </Avatar>
                                 <div className="flex flex-col min-w-0">
                                     <span className="text-sm font-bold text-white group-hover:text-blue-400 transition-colors truncate">
-                                        {sale.productName}
+                                        {sale.customer ? `${sale.customer.firstName} ${sale.customer.lastName}` : t('dashboard.walk_in_customer')}
                                     </span>
                                     <div className="flex items-center gap-2 text-xs text-slate-400">
-                                        <span className="text-pink-500/80 shrink-0">{sale.category}</span>
+                                        <span className="text-pink-500/80 shrink-0">{sale.receiptNumber}</span>
                                         <span className="w-1 h-1 rounded-full bg-slate-600 shrink-0"></span>
-                                        <span className="truncate">{sale.price}</span>
+                                        <span className="truncate">{formatCurrency(parseFloat(sale.total))}</span>
                                     </div>
                                 </div>
                             </div>
 
-
                             <div className="flex flex-col items-end gap-1 shrink-0 pl-2">
-                                <span className="text-xs text-slate-500">{sale.date}</span>
+                                <span className="text-[10px] text-slate-500">
+                                    {new Date(sale.createdAt).toLocaleDateString()}
+                                </span>
                                 <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${getStatusStyles(sale.status)}`}>
-                                    {sale.status}
+                                    {t(`dashboard.status_${sale.status.toLowerCase()}`)}
                                 </span>
                             </div>
                         </div>
                     ))}
+                    {displaySales.length === 0 && (
+                        <div className="text-center py-8 text-slate-500 text-sm">
+                            {t('dashboard.no_records_found')}
+                        </div>
+                    )}
                 </div>
             </CardContent>
         </Card>

@@ -4,55 +4,87 @@ import { ShoppingCart } from "lucide-react";
 import { Button } from "../ui/button";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "../ui/chart";
+import { useTranslation } from 'react-i18next';
 
-const chartConfig = {
-    sales: {
-        label: "Sales",
-        color: "#f97316", // orange-500
-    },
-    purchase: {
-        label: "Purchase",
-        color: "#fdba74", // orange-300
-    },
-} satisfies ChartConfig;
+interface SalesPurchaseCardProps {
+    data?: any[];
+    period?: string;
+    onPeriodChange?: (period: string) => void;
+    isLoading?: boolean;
+}
 
-export const SalesPurchaseCard: React.FC = () => {
-    // Mock data for the chart
-    const data = [
-        { time: '2 am', sales: 40, purchase: 60 },
-        { time: '4 am', sales: 50, purchase: 45 },
-        { time: '6 am', sales: 30, purchase: 35 },
-        { time: '8 am', sales: 45, purchase: 70 },
-        { time: '10 am', sales: 60, purchase: 65 },
-        { time: '12 am', sales: 45, purchase: 40 },
-        { time: '14 pm', sales: 25, purchase: 30 },
-        { time: '16 pm', sales: 50, purchase: 45 },
-        { time: '18 pm', sales: 90, purchase: 80 },
-        { time: '20 pm', sales: 20, purchase: 35 },
-        { time: '22 pm', sales: 70, purchase: 60 },
-        { time: '24 pm', sales: 50, purchase: 45 },
-    ];
+export const SalesPurchaseCard: React.FC<SalesPurchaseCardProps> = ({ data, period = '1W', onPeriodChange, isLoading }) => {
+    const { t } = useTranslation();
+
+    const chartConfig = {
+        sales: {
+            label: t('dashboard.sales'),
+            color: "#f97316", // orange-500
+        },
+        purchase: {
+            label: t('dashboard.purchase'),
+            color: "#fdba74", // orange-300
+        },
+    } satisfies ChartConfig;
+    const formatXAxis = (dateStr: string) => {
+        try {
+            const date = new Date(dateStr);
+            if (period === '1D') {
+                return date.getHours() + ':00';
+            }
+            if (period === '1Y' || period === '6M') {
+                return date.toLocaleDateString(undefined, { month: 'short' });
+            }
+            return date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+        } catch (e) {
+            return dateStr;
+        }
+    };
+
+    const displayData = (data || []).map((item: any) => ({
+        ...item,
+        time: formatXAxis(item.date)
+    }));
+
+    const totalSales = displayData.reduce((acc: number, curr: any) => acc + curr.sales, 0);
+    const totalPurchase = displayData.reduce((acc: number, curr: any) => acc + curr.purchase, 0);
+
+    const formatShortNumber = (num: number) => {
+        if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+        if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+        return num.toFixed(2);
+    };
 
     return (
         <Card className="shadow-sm flex-1 bg-white/5 backdrop-blur-sm border border-white/10 text-white flex flex-col">
-            <CardContent className="p-6 flex flex-col h-full">
+            <CardContent className="p-6 flex flex-col h-full relative">
+                {isLoading && (
+                    <div className="absolute inset-x-0 bottom-0 top-[70px] bg-black/20 backdrop-blur-[2px] z-10 flex items-center justify-center rounded-b-xl">
+                        <div className="flex space-x-2">
+                            <div className="w-2 h-2 bg-orange-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                            <div className="w-2 h-2 bg-orange-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                            <div className="w-2 h-2 bg-orange-500 rounded-full animate-bounce"></div>
+                        </div>
+                    </div>
+                )}
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-6 -mx-6 pb-4 border-b border-white/10 mb-0">
                     <div className="flex items-center gap-2">
                         <div className="p-2 bg-orange-100/10 rounded-lg">
                             <ShoppingCart className="h-5 w-5 text-orange-500" />
                         </div>
-                        <h3 className="text-lg font-bold text-white">Sales & Purchase</h3>
+                        <h3 className="text-lg font-bold text-white">{t('dashboard.sales_purchase')}</h3>
                     </div>
                     <div className="flex bg-white/5 p-1 rounded-lg border border-white/10 overflow-x-auto max-w-full no-scrollbar">
-                        {['1D', '1W', '1M', '3M', '6M', '1Y'].map((period) => (
+                        {['1D', '1W', '1M', '3M', '6M', '1Y'].map((p) => (
                             <Button
-                                key={period}
+                                key={p}
                                 variant="ghost"
                                 size="sm"
-                                className={`h-7 px-3 text-xs font-medium rounded-md whitespace-nowrap ${period === '1Y' ? 'bg-orange-500 text-white hover:bg-orange-600' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+                                onClick={() => onPeriodChange?.(p)}
+                                className={`h-7 px-3 text-xs font-medium rounded-md whitespace-nowrap transition-all ${p === period ? 'bg-orange-500 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
                             >
-                                {period}
+                                {p}
                             </Button>
                         ))}
                     </div>
@@ -63,17 +95,16 @@ export const SalesPurchaseCard: React.FC = () => {
                     <div className="border border-white/10 rounded-xl p-3 bg-white/5 w-full">
                         <div className="flex items-center gap-2 mb-1">
                             <span className="w-2 h-2 rounded-full bg-orange-300 shrink-0"></span>
-                            {/* Note: bg-orange-300 matches the 'purchase' color defined in config */}
-                            <span className="text-slate-400 text-xs font-medium truncate">Total Purchase</span>
+                            <span className="text-slate-400 text-xs font-medium truncate">{t('dashboard.total_purchase_label')}</span>
                         </div>
-                        <h4 className="text-xl font-bold text-white ml-4">3K</h4>
+                        <h4 className="text-xl font-bold text-white ml-4">{formatShortNumber(totalPurchase)}</h4>
                     </div>
                     <div className="border border-white/10 rounded-xl p-3 bg-white/5 w-full">
                         <div className="flex items-center gap-2 mb-1">
                             <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0"></span>
-                            <span className="text-slate-400 text-xs font-medium truncate">Total Sales</span>
+                            <span className="text-slate-400 text-xs font-medium truncate">{t('dashboard.total_sales_label')}</span>
                         </div>
-                        <h4 className="text-xl font-bold text-white ml-4">1K</h4>
+                        <h4 className="text-xl font-bold text-white ml-4">{formatShortNumber(totalSales)}</h4>
                     </div>
                 </div>
 
@@ -81,7 +112,7 @@ export const SalesPurchaseCard: React.FC = () => {
                 {/* min-h ensures the chart has space to render */}
                 <div className="w-full h-[230px] px-6 pb-2">
                     <ChartContainer config={chartConfig} className="h-full w-full max-h-full">
-                        <BarChart accessibilityLayer data={data} width={undefined} height={undefined} style={{ width: '100%', height: '100%' }}>
+                        <BarChart accessibilityLayer data={displayData} width={undefined} height={undefined} style={{ width: '100%', height: '100%' }}>
                             <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                             <XAxis
                                 dataKey="time"

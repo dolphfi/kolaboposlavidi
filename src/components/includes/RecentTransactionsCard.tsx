@@ -33,58 +33,26 @@ const getStatusStyles = (status: TransactionStatus): string => {
     }
 };
 
-export const RecentTransactionsCard: React.FC = () => {
-    const [activeTab, setActiveTab] = useState<TabType>('Sale');
+interface RecentTransactionsCardProps {
+    data?: any[];
+}
 
+export const RecentTransactionsCard: React.FC<RecentTransactionsCardProps> = ({ data }) => {
+    const [activeTab, setActiveTab] = useState<TabType>('Sale');
     const tabs: TabType[] = ['Sale', 'Purchase', 'Quotation', 'Expenses', 'Invoices'];
 
-    const transactions: Transaction[] = [
-        {
-            id: 1,
-            date: '24 May 2025',
-            customerName: 'Andrea Willer',
-            customerId: '#114589',
-            status: 'Completed',
-            total: '$4,560',
-            avatarColor: 'bg-slate-700'
-        },
-        {
-            id: 2,
-            date: '23 May 2025',
-            customerName: 'Timothy Sandsr',
-            customerId: '#114589',
-            status: 'Completed',
-            total: '$3,569',
-            avatarColor: 'bg-amber-700'
-        },
-        {
-            id: 3,
-            date: '22 May 2025',
-            customerName: 'Bonnie Rodrigues',
-            customerId: '#114589',
-            status: 'Draft',
-            total: '$4,560',
-            avatarColor: 'bg-pink-700'
-        },
-        {
-            id: 4,
-            date: '21 May 2025',
-            customerName: 'Randy McCree',
-            customerId: '#114589',
-            status: 'Completed',
-            total: '$2,155',
-            avatarColor: 'bg-slate-600'
-        },
-        {
-            id: 5,
-            date: '21 May 2025',
-            customerName: 'Dennis Anderson',
-            customerId: '#114589',
-            status: 'Completed',
-            total: '$5,123',
-            avatarColor: 'bg-emerald-700'
-        }
-    ];
+    const formatCurrency = (amount: number) => {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+        }).format(amount);
+    };
+
+    const getInitials = (firstName: string, lastName: string) => {
+        return `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase() || 'CU';
+    };
+
+    const displayTransactions = activeTab === 'Sale' ? (data || []) : [];
 
     return (
         <Card className="shadow-sm h-full bg-white/5 backdrop-blur-sm border border-white/10 text-white flex flex-col">
@@ -137,23 +105,23 @@ export const RecentTransactionsCard: React.FC = () => {
 
                         {/* Transactions List */}
                         <div className="flex flex-col gap-3">
-                            {transactions.map((transaction) => (
+                            {displayTransactions.map((transaction) => (
                                 <div key={transaction.id} className="grid grid-cols-12 gap-4 items-center py-2 px-2 rounded-lg hover:bg-white/5 transition-colors group">
                                     <div className="col-span-3 text-sm text-slate-300 whitespace-nowrap">
-                                        {transaction.date}
+                                        {new Date(transaction.createdAt).toLocaleDateString()}
                                     </div>
-                                    <div className="col-span-4 flex items-center gap-3">
-                                        <Avatar className={`h-10 w-10 ${transaction.avatarColor}`}>
-                                            <AvatarFallback className="bg-transparent text-white text-xs font-bold">
-                                                {transaction.customerName.charAt(0)}
+                                    <div className="col-span-4 flex items-center gap-3 overflow-hidden">
+                                        <Avatar className="h-10 w-10 bg-white/10 shrink-0">
+                                            <AvatarFallback className="bg-transparent text-white/50 text-xs font-bold">
+                                                {getInitials(transaction.customer?.firstName, transaction.customer?.lastName)}
                                             </AvatarFallback>
                                         </Avatar>
                                         <div className="flex flex-col min-w-0">
                                             <span className="text-sm font-semibold text-white group-hover:text-blue-400 transition-colors truncate">
-                                                {transaction.customerName}
+                                                {transaction.customer ? `${transaction.customer.firstName} ${transaction.customer.lastName}` : 'Walk-in'}
                                             </span>
-                                            <span className="text-xs text-slate-400">
-                                                {transaction.customerId}
+                                            <span className="text-xs text-slate-400 truncate">
+                                                {transaction.receiptNumber}
                                             </span>
                                         </div>
                                     </div>
@@ -163,10 +131,15 @@ export const RecentTransactionsCard: React.FC = () => {
                                         </span>
                                     </div>
                                     <div className="col-span-2 text-right text-sm font-bold text-white">
-                                        {transaction.total}
+                                        {formatCurrency(parseFloat(transaction.total))}
                                     </div>
                                 </div>
                             ))}
+                            {displayTransactions.length === 0 && (
+                                <div className="text-center py-12 text-slate-500 text-sm">
+                                    {activeTab === 'Sale' ? 'No recent sales found' : `No ${activeTab.toLowerCase()} records yet`}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

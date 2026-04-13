@@ -198,7 +198,7 @@ export function Sidebar({ className }: React.HTMLAttributes<HTMLDivElement>) {
                 {isSidebarOpen && (
                     <h2 className="text-lg font-semibold tracking-tight ml-2 text-white mr-auto">
                         <span className="text-lg sm:text-xl font-bold text-white hidden md:block">
-                            {businessName.charAt(0).toUpperCase() || 'KOLABO TECH'}
+                            {businessName || 'KOLABO POS'}
                         </span>
                     </h2>
                 )}

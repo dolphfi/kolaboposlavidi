@@ -1,65 +1,145 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
-import { Info, User, Users, ShoppingCart, ChevronDown } from "lucide-react";
+import { Info, User, Users, ShoppingCart, ChevronDown, Loader2 } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "../ui/chart";
 import { RadialBarChart, RadialBar, PolarGrid } from "recharts";
+import { useTranslation } from 'react-i18next';
+import reportService from '../../context/api/reportService';
+import { 
+    DropdownMenu, 
+    DropdownMenuContent, 
+    DropdownMenuItem, 
+    DropdownMenuTrigger 
+} from "../ui/dropdown-menu";
 
-const chartData = [
-    { category: "return", customers: 3500, fill: "#10b981" },
-    { category: "firstTime", customers: 5500, fill: "#f97316" }
-];
+interface CustomerStats {
+    firstTime: number;
+    returning: number;
+    firstTimeGrowth: number;
+    returningGrowth: number;
+    label: string;
+}
 
-const chartConfig = {
-    customers: {
-        label: "Customers"
-    },
-    firstTime: {
-        label: "First Time",
-        color: "#f97316"
-    },
-    return: {
-        label: "Return",
-        color: "#10b981"
-    }
-} satisfies ChartConfig;
+interface OverallInfoCardProps {
+    data?: {
+        totalSuppliers: number;
+        totalCustomers: number;
+        totalOrders: number;
+    };
+}
 
-export const OverallInfoCard: React.FC = () => {
+export const OverallInfoCard: React.FC<OverallInfoCardProps> = ({ data }) => {
+    const navigate = useNavigate();
+    const { t } = useTranslation();
+    const [period, setPeriod] = useState('today');
+    const [isLoading, setIsLoading] = useState(false);
+    const [stats, setStats] = useState<CustomerStats | null>(null);
+
+    const fetchCustomerStats = async (p: string) => {
+        try {
+            setIsLoading(true);
+            const res = await reportService.getCustomerOverview(p);
+            setStats(res);
+        } catch (error) {
+            console.error('Error fetching customer stats:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchCustomerStats(period);
+    }, [period]);
+
+    const chartData = [
+        { category: "return", customers: stats?.returning || 0, fill: "#10b981" },
+        { category: "firstTime", customers: stats?.firstTime || 0, fill: "#f97316" }
+    ];
+
+    const chartConfig = {
+        customers: {
+            label: t('dashboard.customers')
+        },
+        firstTime: {
+            label: t('dashboard.first_time'),
+            color: "#f97316"
+        },
+        return: {
+            label: t('dashboard.returning'),
+            color: "#10b981"
+        }
+    } satisfies ChartConfig;
+
+    const periods = [
+        { value: 'today', label: t('dashboard.today') },
+        { value: '1W', label: t('dashboard.weekly') },
+        { value: '1M', label: t('dashboard.monthly') },
+        { value: '1Y', label: t('dashboard.yearly') }
+    ];
+
+    const currentPeriodLabel = periods.find(p => p.value === period)?.label || t('dashboard.today');
+
     return (
         <Card className="shadow-sm h-full bg-white/5 backdrop-blur-sm border border-white/10 text-white flex flex-col">
-            <CardContent className="p-6 flex flex-col h-full">
+            <CardContent className="p-6 flex flex-col h-full relative">
                 <div className="flex items-center gap-2 px-6 -mx-6 pb-4 border-b border-white/10 mb-2 min-h-[38px]">
                     <div className="p-2 bg-blue-500/10 rounded-lg">
                         <Info className="h-5 w-5 text-blue-500" />
                     </div>
-                    <h3 className="text-lg font-bold text-white">Overall Information</h3>
+                    <h3 className="text-lg font-bold text-white">{t('dashboard.overall_info')}</h3>
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4 px-6 -mx-6 pb-4 border-b border-white/10">
-                    <div className="flex flex-col items-center justify-center p-2 sm:p-4 border border-white/10 bg-white/5 rounded-xl hover:bg-white/10 transition-colors">
-                        <User className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500 mb-2" />
-                        <span className="text-[10px] sm:text-xs text-slate-400 font-medium mb-1">Suppliers</span>
-                        <span className="text-sm sm:text-lg font-bold text-white">6987</span>
+                    <div 
+                        className="flex flex-col items-center justify-center p-2 sm:p-4 border border-white/10 bg-white/5 rounded-xl hover:bg-white/10 transition-colors cursor-pointer group"
+                        onClick={() => navigate('/purchases/list')}
+                    >
+                        <User className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500 mb-2 group-hover:scale-110 transition-transform" />
+                        <span className="text-[10px] sm:text-xs text-slate-400 font-medium mb-1">{t('dashboard.suppliers')}</span>
+                        <span className="text-sm sm:text-lg font-bold text-white">{data?.totalSuppliers || 0}</span>
                     </div>
-                    <div className="flex flex-col items-center justify-center p-2 sm:p-4 border border-white/10 bg-white/5 rounded-xl hover:bg-white/10 transition-colors">
-                        <Users className="h-4 w-4 sm:h-5 sm:w-5 text-orange-500 mb-2" />
-                        <span className="text-[10px] sm:text-xs text-slate-400 font-medium mb-1">Customer</span>
-                        <span className="text-sm sm:text-lg font-bold text-white">4896</span>
+                    <div 
+                        className="flex flex-col items-center justify-center p-2 sm:p-4 border border-white/10 bg-white/5 rounded-xl hover:bg-white/10 transition-colors cursor-pointer group"
+                        onClick={() => navigate('/clients')}
+                    >
+                        <Users className="h-4 w-4 sm:h-5 sm:w-5 text-orange-500 mb-2 group-hover:scale-110 transition-transform" />
+                        <span className="text-[10px] sm:text-xs text-slate-400 font-medium mb-1">{t('dashboard.customers')}</span>
+                        <span className="text-sm sm:text-lg font-bold text-white">{data?.totalCustomers || 0}</span>
                     </div>
-                    <div className="flex flex-col items-center justify-center p-2 sm:p-4 border border-white/10 bg-white/5 rounded-xl hover:bg-white/10 transition-colors">
-                        <ShoppingCart className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-500 mb-2" />
-                        <span className="text-[10px] sm:text-xs text-slate-400 font-medium mb-1">Orders</span>
-                        <span className="text-sm sm:text-lg font-bold text-white">487</span>
+                    <div 
+                        className="flex flex-col items-center justify-center p-2 sm:p-4 border border-white/10 bg-white/5 rounded-xl hover:bg-white/10 transition-colors cursor-pointer group"
+                        onClick={() => navigate('/sales/history')}
+                    >
+                        <ShoppingCart className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-500 mb-2 group-hover:scale-110 transition-transform" />
+                        <span className="text-[10px] sm:text-xs text-slate-400 font-medium mb-1">{t('dashboard.orders')}</span>
+                        <span className="text-sm sm:text-lg font-bold text-white">{data?.totalOrders || 0}</span>
                     </div>
                 </div>
 
-                <div>
+                <div className={isLoading ? "opacity-50 pointer-events-none transition-opacity" : "transition-opacity"}>
                     <div className="flex items-center justify-between mb-2">
-                        <h4 className="text-sm font-bold text-slate-200">Customers Overview</h4>
-                        <Button variant="outline" size="sm" className="h-8 text-xs bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:text-white gap-2">
-                            Today
-                            <ChevronDown className="h-3 w-3" />
-                        </Button>
+                        <h4 className="text-sm font-bold text-slate-200">{t('dashboard.customers_overview')}</h4>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="sm" className="h-8 text-xs bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:text-white gap-2">
+                                    {isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : currentPeriodLabel}
+                                    <ChevronDown className="h-3 w-3" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="bg-slate-900 border-white/10 text-white">
+                                {periods.map((p) => (
+                                    <DropdownMenuItem 
+                                        key={p.value} 
+                                        onClick={() => setPeriod(p.value)}
+                                        className="hover:bg-white/10 cursor-pointer"
+                                    >
+                                        {p.label}
+                                    </DropdownMenuItem>
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
 
                     <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -91,20 +171,24 @@ export const OverallInfoCard: React.FC = () => {
 
                         <div className="flex-1 w-full flex items-center justify-around sm:pl-4">
                             <div className="flex flex-col items-center">
-                                <h5 className="text-2xl font-bold text-white mb-1">5.5K</h5>
-                                <p className="text-xs text-orange-500 font-medium mb-2">First Time</p>
-                                <span className="bg-emerald-500/20 text-emerald-400 text-[10px] font-bold px-2 py-1 rounded border border-emerald-500/20">
-                                    +25%
+                                <h5 className="text-2xl font-bold text-white mb-1">
+                                    {stats ? stats.firstTime >= 1000 ? (stats.firstTime/1000).toFixed(1) + 'K' : stats.firstTime : '0'}
+                                </h5>
+                                <p className="text-xs text-orange-500 font-medium mb-2">{t('dashboard.first_time')}</p>
+                                <span className={`text-[10px] font-bold px-2 py-1 rounded border ${stats && stats.firstTimeGrowth >= 0 ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/20 text-rose-400 border-rose-500/20'}`}>
+                                    {stats && stats.firstTimeGrowth >= 0 ? '+' : ''}{stats?.firstTimeGrowth || 0}%
                                 </span>
                             </div>
 
                             <div className="h-12 w-px bg-white/10 mx-2"></div>
 
                             <div className="flex flex-col items-center">
-                                <h5 className="text-2xl font-bold text-white mb-1">3.5K</h5>
-                                <p className="text-xs text-emerald-500 font-medium mb-2">Return</p>
-                                <span className="bg-emerald-500/20 text-emerald-400 text-[10px] font-bold px-2 py-1 rounded border border-emerald-500/20">
-                                    +21%
+                                <h5 className="text-2xl font-bold text-white mb-1">
+                                    {stats ? stats.returning >= 1000 ? (stats.returning/1000).toFixed(1) + 'K' : stats.returning : '0'}
+                                </h5>
+                                <p className="text-xs text-emerald-500 font-medium mb-2">{t('dashboard.returning')}</p>
+                                <span className={`text-[10px] font-bold px-2 py-1 rounded border ${stats && stats.returningGrowth >= 0 ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/20 text-rose-400 border-rose-500/20'}`}>
+                                    {stats && stats.returningGrowth >= 0 ? '+' : ''}{stats?.returningGrowth || 0}%
                                 </span>
                             </div>
                         </div>

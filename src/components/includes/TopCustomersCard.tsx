@@ -1,112 +1,143 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
-import { Link } from 'react-router-dom';
-import { Users } from 'lucide-react';
+import { Avatar, AvatarFallback } from '../../components/ui/avatar';
+import { Users, ChevronDown, TrendingUp, TrendingDown, Loader2, ShoppingBag } from 'lucide-react';
+import { useTranslation } from "react-i18next";
+import reportService from '../../context/api/reportService';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger
+} from "../ui/dropdown-menu";
 
-interface Customer {
-    id: number;
-    name: string;
-    location: string;
-    orders: number;
-    totalSpend: string;
-    avatar: string;
+interface TopCustomersCardProps {
+    customers?: any[];
 }
 
-export const TopCustomersCard: React.FC = () => {
-    const customers: Customer[] = [
-        {
-            id: 1,
-            name: 'Carlos Curran',
-            location: 'USA',
-            orders: 24,
-            totalSpend: '$8,9645',
-            avatar: 'https://i.pravatar.cc/150?u=1' // Placeholder or use local images if available
-        },
-        {
-            id: 2,
-            name: 'Stan Gaunter',
-            location: 'UAE',
-            orders: 22,
-            totalSpend: '$16,985',
-            avatar: 'https://i.pravatar.cc/150?u=2'
-        },
-        {
-            id: 3,
-            name: 'Richard Wilson',
-            location: 'Germany',
-            orders: 14,
-            totalSpend: '$5,366',
-            avatar: 'https://i.pravatar.cc/150?u=3'
-        },
-        {
-            id: 4,
-            name: 'Mary Bronson',
-            location: 'Belgium',
-            orders: 8,
-            totalSpend: '$4,569',
-            avatar: 'https://i.pravatar.cc/150?u=4'
-        },
-        {
-            id: 5,
-            name: 'Annie Tremblay',
-            location: 'Greenland',
-            orders: 14,
-            totalSpend: '$3,5698',
-            avatar: 'https://i.pravatar.cc/150?u=5'
-        }
+export const TopCustomersCard: React.FC<TopCustomersCardProps> = ({ customers: initialData }) => {
+    const { t } = useTranslation();
+    const [selectedPeriod, setSelectedPeriod] = useState('today');
+    const [customersData, setCustomersData] = useState<any[]>(initialData || []);
+    const [isLoading, setIsLoading] = useState(false);
+
+    const periods = [
+        { id: 'today', label: t('dashboard.today') },
+        { id: '1W', label: t('dashboard.weekly') },
+        { id: '1M', label: t('dashboard.monthly') },
+        { id: '1Y', label: t('dashboard.yearly') },
     ];
+
+    const fetchTopCustomers = async (period: string) => {
+        try {
+            setIsLoading(true);
+            const res = await reportService.getTopCustomers(period);
+            setCustomersData(res);
+        } catch (error) {
+            console.error('Error fetching top customers:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (selectedPeriod !== 'today' || !initialData) {
+            fetchTopCustomers(selectedPeriod);
+        } else if (initialData) {
+            setCustomersData(initialData);
+        }
+    }, [selectedPeriod]);
+
+    const formatCurrency = (amount: number | string) => {
+        const value = typeof amount === 'string' ? parseFloat(amount) : amount;
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'HTG',
+            maximumFractionDigits: 0,
+        }).format(value);
+    };
+
+    const getInitials = (firstName: string, lastName: string) => {
+        return `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase() || 'CU';
+    };
 
     return (
         <Card className="shadow-sm h-full bg-white/5 backdrop-blur-sm border border-white/10 text-white flex flex-col">
-            <CardContent className="p-6 flex flex-col h-full">
+            <CardContent className="p-6 flex flex-col h-full relative">
                 {/* Header */}
                 <div className="flex items-center justify-between pb-4 border-b border-white/10 mb-4 px-6 -mx-6">
                     <div className="flex items-center gap-2">
                         <div className="p-2 bg-orange-500/10 rounded-lg">
-                            {/* Changed icon to Users to match the design (or intent) */}
                             <Users className="h-5 w-5 text-orange-500" />
                         </div>
-                        <h3 className="text-lg font-bold text-white">Top Customers</h3>
+                        <h3 className="text-lg font-bold text-white">{t('dashboard.top_customers')}</h3>
                     </div>
 
-                    <Link to="/customers">
-                        <Button variant="link" className="text-sm text-slate-300 hover:text-white hover:no-underline p-0 h-auto">
-                            View All
-                        </Button>
-                    </Link>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm" className="h-8 text-xs bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:text-white gap-2">
+                                {isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : periods.find(p => p.id === selectedPeriod)?.label || t('dashboard.today')}
+                                <ChevronDown className="h-3 w-3" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="bg-slate-900 border-white/10 text-white">
+                            {periods.map((p) => (
+                                <DropdownMenuItem 
+                                    key={p.id} 
+                                    onSelect={() => setSelectedPeriod(p.id)}
+                                    className="hover:bg-white/10 cursor-pointer"
+                                >
+                                    {p.label}
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
 
                 {/* List */}
-                <div className="flex-1 flex flex-col justify-between">
-                    {customers.map((customer) => (
-                        <div key={customer.id} className="flex items-center justify-between group py-2">
+                <div className={`flex flex-col gap-4 flex-1 transition-opacity ${isLoading ? "opacity-50" : "opacity-100"}`}>
+                    {customersData.map((customer, index) => (
+                        <div key={index} className="flex items-center justify-between group">
                             <div className="flex items-center gap-3 overflow-hidden">
-                                {/* Avatar */}
-                                <Avatar className="h-10 w-10 rounded-lg">
-                                    <AvatarImage src={customer.avatar} alt={customer.name} />
-                                    <AvatarFallback className="rounded-lg bg-slate-700 text-xs font-bold text-white">
-                                        {customer.name.charAt(0)}
+                                <Avatar className="h-10 w-10 rounded-lg bg-white/10 border border-white/5">
+                                    <AvatarFallback className="bg-transparent text-white/50 text-xs font-bold">
+                                        {getInitials(customer.firstName, customer.lastName)}
                                     </AvatarFallback>
                                 </Avatar>
                                 <div className="flex flex-col min-w-0">
-                                    <span className="text-sm font-bold text-white group-hover:text-amber-500 transition-colors truncate">
-                                        {customer.name}
+                                    <span className="text-sm font-bold text-white group-hover:text-orange-400 transition-colors truncate">
+                                        {customer.firstName} {customer.lastName}
                                     </span>
-                                    <div className="flex items-center gap-1 text-xs text-slate-400">
-                                        <span className="shrink-0">{customer.location}</span>
-                                        <span className="w-1 h-1 rounded-full bg-slate-600 shrink-0"></span>
-                                        <span className="text-orange-400 truncate">{customer.orders.toString().padStart(2, '0')} Orders</span>
+                                    <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                                        <span className="text-teal-400 font-bold">{formatCurrency(customer.totalSpent)}</span>
+                                        <span className="w-1 h-1 rounded-full bg-slate-600" />
+                                        <span className="flex items-center gap-1">
+                                            <ShoppingBag className="h-2.5 w-2.5" />
+                                            {customer.orderCount} {t('dashboard.orders')}
+                                        </span>
                                     </div>
                                 </div>
                             </div>
 
-                            <span className="text-sm font-bold text-white shrink-0 pl-2">
-                                {customer.totalSpend}
-                            </span>
+                            <div className="flex flex-col items-end gap-1 shrink-0 pl-2">
+                                <div className={`flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                    customer.growth >= 0 
+                                    ? "text-emerald-500 bg-emerald-500/10" 
+                                    : "text-rose-500 bg-rose-500/10"
+                                }`}>
+                                    {customer.growth >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                                    {customer.growth >= 0 ? "+" : ""}{customer.growth}%
+                                </div>
+                            </div>
                         </div>
                     ))}
+                    {customersData.length === 0 && !isLoading && (
+                        <div className="flex flex-col items-center justify-center py-12 text-slate-500 gap-2">
+                            <Users className="h-8 w-8 opacity-20" />
+                            <span className="text-sm">{t('common.no_data')}</span>
+                        </div>
+                    )}
                 </div>
             </CardContent>
         </Card>
