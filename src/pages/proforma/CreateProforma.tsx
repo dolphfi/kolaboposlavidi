@@ -69,7 +69,7 @@ const CreateProforma: React.FC = () => {
         return savedCart ? JSON.parse(savedCart) : [];
     });
     const [discount, setDiscount] = useState(() => {
-        return parseFloat(localStorage.getItem('proforma_discount') || '0');
+        return parseFloat(localStorage.getItem('proforma_discount') || '0') || 0;
     });
     const [expiresInDays, setExpiresInDays] = useState(() => {
         return parseInt(localStorage.getItem('proforma_expiresInDays') || '7');
@@ -172,7 +172,8 @@ const CreateProforma: React.FC = () => {
 
     const subtotal = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
     const tax = subtotal * 0.10;
-    const total = subtotal + tax - discount;
+    const safeDiscount = isNaN(discount) || discount < 0 ? 0 : discount;
+    const total = subtotal + tax - safeDiscount;
 
     const handleSave = async () => {
         if (cart.length === 0) {
@@ -195,7 +196,7 @@ const CreateProforma: React.FC = () => {
             customerId: selectedCustomerId === "walk-in" ? undefined : selectedCustomerId,
             sellType: sellType.toUpperCase() as any,
             items: cart,
-            discount,
+            discount: safeDiscount,
             expiresAt: expirationDate.toISOString()
         };
 
@@ -305,23 +306,47 @@ const CreateProforma: React.FC = () => {
                             </div>
                         </CardHeader>
                         <CardContent className="max-h-[500px] overflow-y-auto space-y-2 scrollbar-thin scrollbar-thumb-white/10">
-                            {filteredItems.map(item => (
+                            {filteredItems.length === 0 ? (
+                                <p className="text-center text-slate-500 italic py-8 text-sm">
+                                    {t('common.no_data')}
+                                </p>
+                            ) : filteredItems.map(item => (
                                 <div
                                     key={item.id}
                                     onClick={() => addToCart(item)}
-                                    className="p-3 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 cursor-pointer transition-all flex justify-between items-center group"
+                                    className="p-3 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 cursor-pointer transition-all group"
                                 >
-                                    <div>
-                                        <p className="text-white font-medium group-hover:text-blue-400">{item.name}</p>
-                                        {item.sku && <p className="text-xs text-slate-500">{item.sku}</p>}
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-white font-bold">{item.price} HTG</p>
-                                        {sellType === 'product' && (
-                                            <Badge variant="outline" className="text-[10px] py-0 border-white/10 text-slate-400">
-                                                {t('common.stock')}: {item.qty || 0}
-                                            </Badge>
-                                        )}
+                                    <div className="flex justify-between items-start gap-3">
+                                        {/* Left — name + description/SKU */}
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-white font-medium group-hover:text-blue-400 truncate">
+                                                {item.name}
+                                            </p>
+                                            {sellType === 'service' && item.description && (
+                                                <p className="text-xs text-slate-500 mt-0.5 line-clamp-2 leading-relaxed">
+                                                    {item.description}
+                                                </p>
+                                            )}
+                                            {sellType === 'product' && item.sku && (
+                                                <p className="text-xs text-slate-500 mt-0.5">{item.sku}</p>
+                                            )}
+                                        </div>
+                                        {/* Right — price + category/stock */}
+                                        <div className="text-right flex-shrink-0 space-y-1">
+                                            <p className="text-white font-bold text-sm">
+                                                {Number(item.price).toLocaleString('en-US', { minimumFractionDigits: 2 })}{'\u00a0'}HTG
+                                            </p>
+                                            {sellType === 'service' && item.category?.name && (
+                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                                                    {item.category.name}
+                                                </span>
+                                            )}
+                                            {sellType === 'product' && (
+                                                <Badge variant="outline" className="text-[10px] py-0 border-white/10 text-slate-400">
+                                                    {t('common.stock')}: {item.qty || 0}
+                                                </Badge>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             ))}
@@ -442,9 +467,16 @@ const CreateProforma: React.FC = () => {
                                                 </label>
                                                 <Input
                                                     type="number"
+                                                    min="0"
+                                                    step="0.01"
                                                     className="bg-slate-800 border-white/10 text-white"
-                                                    value={discount}
-                                                    onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
+                                                    value={discount === 0 ? '' : discount}
+                                                    placeholder="0.00"
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        const parsed = parseFloat(val);
+                                                        setDiscount(isNaN(parsed) || parsed < 0 ? 0 : parsed);
+                                                    }}
                                                 />
                                             </div>
                                             <div className="space-y-2">
@@ -464,17 +496,21 @@ const CreateProforma: React.FC = () => {
 
                                 <div className="space-y-3">
                                     <div className="flex justify-between text-slate-400 items-center">
-                                        <span>Sans Tout</span>
+                                        <span>{t('proforma.subtotal')}</span>
                                         <span className="text-white font-medium">{subtotal.toFixed(2)} HTG</span>
                                     </div>
-                                    <div className="flex justify-between text-slate-400 items-center">
-                                        <span>Tax (10%)</span>
-                                        <span className="text-white font-medium">{tax.toFixed(2)} HTG</span>
-                                    </div>
-                                    <div className="flex justify-between text-slate-400 items-center">
-                                        <span>Rabais</span>
-                                        <span className="text-rose-400 font-medium">-{discount.toFixed(2)} HTG</span>
-                                    </div>
+                                    {tax > 0 && (
+                                        <div className="flex justify-between text-slate-400 items-center">
+                                            <span>{t('proforma.tax')} (10%)</span>
+                                            <span className="text-white font-medium">{tax.toFixed(2)} HTG</span>
+                                        </div>
+                                    )}
+                                    {safeDiscount > 0 && (
+                                        <div className="flex justify-between text-slate-400 items-center">
+                                            <span>{t('proforma.discount')}</span>
+                                            <span className="text-rose-400 font-medium">-{safeDiscount.toFixed(2)} HTG</span>
+                                        </div>
+                                    )}
                                     <div className="h-px bg-white/10 my-2" />
                                     <div className="flex justify-between items-center bg-blue-500/10 p-4 rounded-xl border border-blue-500/20">
                                         <span className="text-blue-400 font-bold uppercase tracking-widest text-lg">Total</span>

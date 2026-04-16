@@ -49,7 +49,7 @@ const ProformaList: React.FC = () => {
         setIsLoading(true);
         try {
             const data = await proformaService.findAll();
-            setProformas(data);
+            setProformas(Array.isArray(data) ? data : (data?.data ?? []));
         } catch (error) {
             console.error('Error fetching proformas:', error);
             toast.error(t("proforma.error_fetch"));
@@ -58,10 +58,15 @@ const ProformaList: React.FC = () => {
         }
     };
 
-    const filteredProformas = proformas.filter(p =>
-        p.proformaNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredProformas = proformas.filter(p => {
+        const searchTarget = searchTerm.toLowerCase();
+        const numMatch = p.proformaNumber.toLowerCase().includes(searchTarget);
+        const customerMatch = p.customer
+            ? `${p.customer.firstName} ${p.customer.lastName}`.toLowerCase().includes(searchTarget)
+            : t('proforma.walk_in').toLowerCase().includes(searchTarget);
+        
+        return numMatch || customerMatch;
+    });
 
     const getStatusVariant = (status: string) => {
         switch (status) {
@@ -162,7 +167,9 @@ const ProformaList: React.FC = () => {
                                                 {p.proformaNumber}
                                             </TableCell>
                                             <TableCell className="text-slate-300">
-                                                {p.customer?.name || t('proforma.direct_sale')}
+                                                {p.customer
+                                                    ? `${p.customer.firstName} ${p.customer.lastName}`
+                                                    : t('proforma.walk_in')}
                                             </TableCell>
                                             <TableCell className="text-emerald-400 font-bold">
                                                 {Number(p.total).toFixed(2)} HTG
