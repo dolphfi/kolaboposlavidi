@@ -105,9 +105,11 @@ const Settings: React.FC = () => {
     const fetchTerminals = async () => {
         try {
             const response = await posService.getAll(1, 100); // Fetch all POS
-            setTerminals(response.data);
-            if (response.data.length > 0) {
-                setSelectedPos(response.data[0].id);
+            const rawData = response?.data || response;
+            const data = Array.isArray(rawData) ? rawData : (Array.isArray(rawData?.data) ? rawData.data : []);
+            setTerminals(data);
+            if (data.length > 0) {
+                setSelectedPos(data[0].id);
             }
         } catch (error) {
             console.error("Failed to fetch terminals:", error);
@@ -122,9 +124,13 @@ const Settings: React.FC = () => {
                 settingsService.getBackupHistory()
             ]);
 
-            const data = settingsResponse.data;
+            const rawData = settingsResponse?.data || settingsResponse;
+            const data = Array.isArray(rawData) ? rawData : (Array.isArray(rawData?.data) ? rawData.data : []);
             setSettings(data);
-            setBackupHistory(historyResponse);
+            
+            const rawHistory = historyResponse?.data || historyResponse;
+            const historyData = Array.isArray(rawHistory) ? rawHistory : (Array.isArray(rawHistory?.data) ? rawHistory.data : []);
+            setBackupHistory(historyData);
 
             // Extract values
             setMaintenanceMode(data.find((s: any) => s.key === 'MAINTENANCE_MODE')?.value === 'true');
