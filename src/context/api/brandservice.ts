@@ -14,6 +14,26 @@ export interface UpdateBrandDto {
     isActive?: boolean;
 }
 
+const extractArray = (response: any) => {
+    if (!response) return [];
+    const d = response.data || response;
+    if (Array.isArray(d)) return d;
+    if (d && Array.isArray(d.data)) return d.data;
+    if (d && typeof d === 'object' && Object.keys(d).length > 0) {
+        const vals = Object.values(d);
+        const firstArray = vals.find(v => Array.isArray(v));
+        if (firstArray) return firstArray;
+    }
+    return [];
+};
+
+const extractObject = (response: any) => {
+    if (!response) return {};
+    const d = response.data || response;
+    if (d && d.data && !Array.isArray(d.data)) return d.data;
+    return d;
+};
+
 /**
  * Service to handle all brand related API calls
  */
@@ -23,7 +43,7 @@ const brandService = {
      */
     getAll: async () => {
         const response = await api.get('/brands');
-        return response.data;
+        return extractArray(response);
     },
 
     /**
@@ -31,7 +51,7 @@ const brandService = {
      */
     getById: async (id: string) => {
         const response = await api.get(`/brands/${id}`);
-        return response.data;
+        return extractObject(response);
     },
 
     /**
@@ -50,7 +70,7 @@ const brandService = {
         }
 
         const response = await api.post('/brands', formData);
-        return response.data;
+        return extractObject(response);
     },
 
     /**
@@ -69,7 +89,7 @@ const brandService = {
         }
 
         const response = await api.patch(`/brands/${id}`, formData);
-        return response.data;
+        return extractObject(response);
     },
 
     /**
@@ -77,7 +97,7 @@ const brandService = {
      */
     delete: async (id: string) => {
         const response = await api.delete(`/brands/${id}`);
-        return response.data;
+        return extractObject(response);
     }
 };
 

@@ -4,47 +4,52 @@ import { Service } from '../types/interface';
 /**
  * Service to handle all service-related API calls
  */
+const extractArray = (response: any) => {
+    if (!response) return [];
+    const d = (response as any).data || response;
+    if (Array.isArray(d)) return d;
+    if (d && Array.isArray(d.data)) return d.data;
+    if (d && typeof d === 'object' && Object.keys(d).length > 0) {
+        const vals = Object.values(d);
+        const firstArray = vals.find(v => Array.isArray(v));
+        if (firstArray) return firstArray;
+    }
+    return [];
+};
+
+const extractObject = (response: any) => {
+    if (!response) return {};
+    const d = (response as any).data || response;
+    if (d && d.data && !Array.isArray(d.data)) return d.data;
+    return d;
+};
+
 const serviceService = {
-    /**
-     * Get all services
-     */
     getAll: async (posId?: string): Promise<Service[]> => {
         const response = await api.get('/services', {
             params: { posId }
         });
-        return response.data;
+        return extractArray(response) as Service[];
     },
 
-    /**
-     * Get service by ID
-     */
     getById: async (id: string): Promise<Service> => {
         const response = await api.get(`/services/${id}`);
-        return response.data;
+        return extractObject(response) as Service;
     },
 
-    /**
-     * Create a new service
-     */
     create: async (serviceData: any): Promise<Service> => {
         const response = await api.post('/services', serviceData);
-        return response.data;
+        return extractObject(response) as Service;
     },
 
-    /**
-     * Update an existing service
-     */
     update: async (id: string, serviceData: any): Promise<Service> => {
         const response = await api.patch(`/services/${id}`, serviceData);
-        return response.data;
+        return extractObject(response) as Service;
     },
 
-    /**
-     * Delete a service
-     */
     remove: async (id: string): Promise<any> => {
         const response = await api.delete(`/services/${id}`);
-        return response.data;
+        return extractObject(response);
     }
 };
 

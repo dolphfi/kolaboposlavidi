@@ -17,29 +17,40 @@ export interface CreateSaleData {
     discount?: number;
 }
 
+const extractArray = (response: any) => {
+    if (!response) return [];
+    const d = (response as any).data || response;
+    if (Array.isArray(d)) return d;
+    if (d && Array.isArray(d.data)) return d.data;
+    if (d && typeof d === 'object' && Object.keys(d).length > 0) {
+        const vals = Object.values(d);
+        const firstArray = vals.find(v => Array.isArray(v));
+        if (firstArray) return firstArray;
+    }
+    return [];
+};
+
+const extractObject = (response: any) => {
+    if (!response) return {};
+    const d = (response as any).data || response;
+    if (d && d.data && !Array.isArray(d.data)) return d.data;
+    return d;
+};
+
 const salesService = {
-    /**
-     * Enregistrer une nouvelle vente
-     */
     create: async (data: CreateSaleData) => {
         const response = await api.post('/sales', data);
-        return response.data;
+        return extractObject(response);
     },
 
-    /**
-     * Récupérer l'historique des ventes
-     */
     findAll: async () => {
         const response = await api.get('/sales');
-        return response.data;
+        return extractArray(response);
     },
 
-    /**
-     * Récupérer les détails d'une vente
-     */
     findOne: async (id: string) => {
         const response = await api.get(`/sales/${id}`);
-        return response.data;
+        return extractObject(response);
     },
 };
 

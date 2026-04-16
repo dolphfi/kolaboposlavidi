@@ -1,42 +1,47 @@
 import api from './api';
 import { Role } from '../types/auth';
 
+const extractArray = (response: any) => {
+    if (!response) return [];
+    const d = (response as any).data || response;
+    if (Array.isArray(d)) return d;
+    if (d && Array.isArray(d.data)) return d.data;
+    if (d && typeof d === 'object' && Object.keys(d).length > 0) {
+        const vals = Object.values(d);
+        const firstArray = vals.find(v => Array.isArray(v));
+        if (firstArray) return firstArray;
+    }
+    return [];
+};
+
+const extractObject = (response: any) => {
+    if (!response) return {};
+    const d = (response as any).data || response;
+    if (d && d.data && !Array.isArray(d.data)) return d.data;
+    return d;
+};
+
 const rolesService = {
-    /**
-     * Get all roles
-     */
     getRoles: async (): Promise<Role[]> => {
         const response = await api.get('/roles');
-        return response.data;
+        return extractArray(response) as Role[];
     },
 
-    /**
-     * Get role by ID
-     */
     getRoleById: async (id: string): Promise<Role> => {
         const response = await api.get(`/roles/${id}`);
-        return response.data;
+        return extractObject(response) as Role;
     },
 
-    /**
-     * Create a new role
-     */
     createRole: async (data: Partial<Role>): Promise<Role> => {
         const response = await api.post('/roles/add-role', data);
-        return response.data;
+        return extractObject(response) as Role;
     },
 
-    /**
-     * Update an existing role
-     */
     updateRole: async (id: string, data: Partial<Role>): Promise<Role> => {
         const response = await api.patch(`/roles/${id}`, data);
-        return response.data;
+        return extractObject(response) as Role;
     },
 
-    /**
-     * Delete a role
-     */
     deleteRole: async (id: string): Promise<void> => {
         await api.delete(`/roles/${id}`);
     }
