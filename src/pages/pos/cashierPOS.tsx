@@ -162,6 +162,19 @@ const CashierPOS: React.FC = () => {
     const [isCustomerDialogOpen, setIsCustomerDialogOpen] = useState(false);
     const [isScanCustomerDialogOpen, setIsScanCustomerDialogOpen] = useState(false);
     const [scanCustomerQuery, setScanCustomerQuery] = useState('');
+    const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+    useEffect(() => {
+        const handleOnline = () => setIsOnline(true);
+        const handleOffline = () => setIsOnline(false);
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, []);
+
     const [customerFormData, setCustomerFormData] = useState({
         firstName: '',
         lastName: '',
@@ -969,9 +982,14 @@ const CashierPOS: React.FC = () => {
                                         </Button>
                                         <Button
                                             variant="outline"
+                                            disabled={!isOnline}
                                             onClick={() => {
                                                 if (cart.length === 0) {
                                                     toast.error("Cart is empty. Please add items before selecting a payment method.");
+                                                    return;
+                                                }
+                                                if (!isOnline) {
+                                                    toast.error("Ou Offline! Kat pa disponib.");
                                                     return;
                                                 }
                                                 toast.error("Peman pa kat poko disponib.");
@@ -979,16 +997,21 @@ const CashierPOS: React.FC = () => {
                                             className={`w-full justify-start gap-2 h-9 text-white hover:bg-emerald-600/20 hover:text-white ${selectedPaymentMethod === 'card'
                                                 ? 'bg-emerald-600/10 border-emerald-500/30'
                                                 : 'bg-slate-800/50 border-white/10 hover:bg-slate-700/50'
-                                                }`}
+                                                } ${!isOnline ? 'opacity-50 cursor-not-allowed' : ''}`}
                                         >
                                             <CreditCard className={`h-4 w-4 ${selectedPaymentMethod === 'card' ? 'text-emerald-500' : 'text-orange-400'}`} />
                                             <span className="text-sm">Card</span>
                                         </Button>
                                         <Button
                                             variant="outline"
+                                            disabled={!isOnline}
                                             onClick={() => {
                                                 if (cart.length === 0) {
                                                     toast.error("Cart is empty. Please add items before selecting a payment method.");
+                                                    return;
+                                                }
+                                                if (!isOnline) {
+                                                    toast.error("Ou Offline! Scan pa disponib.");
                                                     return;
                                                 }
                                                 toast.error("Peman par scan poko disponib.");
@@ -996,16 +1019,21 @@ const CashierPOS: React.FC = () => {
                                             className={`w-full justify-start gap-2 h-9 text-white hover:bg-emerald-600/20 hover:text-white ${selectedPaymentMethod === 'scan'
                                                 ? 'bg-emerald-600/10 border-emerald-500/30'
                                                 : 'bg-slate-800/50 border-white/10 hover:bg-slate-700/50'
-                                                }`}
+                                                } ${!isOnline ? 'opacity-50 cursor-not-allowed' : ''}`}
                                         >
                                             <Scan className={`h-4 w-4 ${selectedPaymentMethod === 'scan' ? 'text-emerald-500' : 'text-blue-400'}`} />
                                             <span className="text-sm">Scan</span>
                                         </Button>
                                         <Button
                                             variant="outline"
+                                            disabled={!isOnline}
                                             onClick={() => {
                                                 if (cart.length === 0) {
                                                     toast.error("Cart is empty. Please add items before selecting a payment method.");
+                                                    return;
+                                                }
+                                                if (!isOnline) {
+                                                    toast.error("Ou Offline! Split Bill pa disponib.");
                                                     return;
                                                 }
                                                 toast.error("Peman pataje (Split Bill) poko disponib.");
@@ -1013,7 +1041,7 @@ const CashierPOS: React.FC = () => {
                                             className={`w-full justify-start gap-2 h-9 text-white hover:bg-emerald-600/20 hover:text-white ${selectedPaymentMethod === 'split'
                                                 ? 'bg-emerald-600/10 border-emerald-500/30'
                                                 : 'bg-slate-800/50 border-white/10 hover:bg-slate-700/50'
-                                                }`}
+                                                } ${!isOnline ? 'opacity-50 cursor-not-allowed' : ''}`}
                                         >
                                             <Split className={`h-4 w-4 ${selectedPaymentMethod === 'split' ? 'text-emerald-500' : 'text-purple-400'}`} />
                                             <span className="text-sm">Split Bill</span>

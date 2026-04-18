@@ -1,4 +1,5 @@
 import api from './api';
+import { db } from '../../lib/database';
 
 const extractArray = (response: any) => {
     if (!response) return [];
@@ -28,10 +29,33 @@ const categoryService = {
      * Get all categories
      */
     getAll: async (type?: 'product' | 'service') => {
-        const response = await api.get('/categories', {
-            params: { type }
-        });
-        return extractArray(response);
+        if (!navigator.onLine) {
+            console.log("Offline mode: loading categories from indexedDB");
+            let localData = await db.categories.toArray();
+            if (type) {
+                localData = localData.filter(c => c.type === type);
+            }
+            return localData;
+        }
+
+        try {
+            const response = await api.get('/categories', {
+                params: { type }
+            });
+            const data = extractArray(response);
+            
+            if (data.length > 0) {
+                await db.categories.bulkPut(data);
+            }
+            return data;
+        } catch (error) {
+            console.log("Error fetching categories, falling back to indexedDB", error);
+            let localData = await db.categories.toArray();
+            if (type) {
+                localData = localData.filter(c => c.type === type);
+            }
+            return localData;
+        }
     },
 
     /**

@@ -1,5 +1,6 @@
 import api from './api';
 import { Customer } from '../types/interface';
+import { db } from '../../lib/database';
 
 const extractArray = (response: any) => {
     if (!response) return [];
@@ -23,8 +24,22 @@ const extractObject = (response: any) => {
 
 const customerService = {
     getAll: async (): Promise<Customer[]> => {
-        const response = await api.get('/customers');
-        return extractArray(response) as Customer[];
+        if (!navigator.onLine) {
+            console.log("Offline mode: loading customers from indexedDB");
+            return await db.customers.toArray();
+        }
+
+        try {
+            const response = await api.get('/customers');
+            const data = extractArray(response) as Customer[];
+            if (data.length > 0) {
+                await db.customers.bulkPut(data);
+            }
+            return data;
+        } catch (error) {
+            console.log("Error fetching customers, falling back to indexedDB", error);
+            return await db.customers.toArray();
+        }
     },
 
     getById: async (id: string): Promise<Customer> => {

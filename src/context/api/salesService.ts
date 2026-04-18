@@ -1,4 +1,5 @@
 import api from './api';
+import { db } from '../../lib/database';
 
 export interface CreateSaleItem {
     productId?: string;
@@ -39,6 +40,17 @@ const extractObject = (response: any) => {
 
 const salesService = {
     create: async (data: CreateSaleData) => {
+        if (!navigator.onLine) {
+            console.log("Offline mode: Queueing sale for sync");
+            const localId = Date.now();
+            await db.pendingSales.add({
+                saleData: data,
+                status: 'pending',
+                createdAt: new Date().toISOString()
+            });
+            return { status: "QUEUED_FOR_SYNC", id: localId };
+        }
+
         const response = await api.post('/sales', data);
         return extractObject(response);
     },

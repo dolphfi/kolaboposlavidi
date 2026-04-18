@@ -1,4 +1,5 @@
 import api from './api';
+import { db } from '../../lib/database';
 
 const extractArray = (response: any) => {
     if (!response) return [];
@@ -28,10 +29,26 @@ const productService = {
      * Get all products
      */
     getAll: async (posId?: string) => {
-        const response = await api.get('/products', {
-            params: { posId }
-        });
-        return extractArray(response);
+        if (!navigator.onLine) {
+            console.log("Offline mode: loading products from indexedDB");
+            return await db.products.toArray();
+        }
+
+        try {
+            const response = await api.get('/products', {
+                params: { posId }
+            });
+            const data = extractArray(response);
+            
+            if (data.length > 0) {
+                // Clear and recreate or just bulkPut
+                await db.products.bulkPut(data);
+            }
+            return data;
+        } catch (error) {
+            console.log("Error fetching products, falling back to indexedDB", error);
+            return await db.products.toArray();
+        }
     },
 
     /**

@@ -6,8 +6,11 @@ import {
     Clock,
     Monitor,
     BanknoteArrowUp,
-    Calendar
+    Calendar,
+    CloudOff
 } from 'lucide-react';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '../../lib/database';
 import {
     Select,
     SelectContent,
@@ -43,6 +46,20 @@ export default function NavbarPos({ sellType, setSellType }: NavbarPosProps) {
     const [logoUrl, setLogoUrl] = useState('');
     const [posName, setPosName] = useState('Main POS');
     const { user } = useAuth();
+    
+    const pendingSalesCount = useLiveQuery(() => db.pendingSales.count(), []) || 0;
+    const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+    useEffect(() => {
+        const handleOnline = () => setIsOnline(true);
+        const handleOffline = () => setIsOnline(false);
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, []);
 
     useEffect(() => {
         const fetchNavbarSettings = async () => {
@@ -227,6 +244,16 @@ export default function NavbarPos({ sellType, setSellType }: NavbarPosProps) {
                                 )}
                             </SelectContent>
                         </Select>
+                    )}
+
+                    {/* Pending Sales Badge */}
+                    {!isOnline && (
+                        <div className="flex items-center gap-1.5 bg-orange-500/20 border border-orange-500/30 px-2 sm:px-3 h-9 rounded-lg">
+                            <CloudOff className="h-4 w-4 text-orange-400 animate-pulse" />
+                            <span className="text-orange-400 font-mono text-xs sm:text-sm font-semibold">
+                                {pendingSalesCount} Offline
+                            </span>
+                        </div>
                     )}
 
                     {/* Action Icons */}
